@@ -8,6 +8,17 @@ use Joomla\Database\ParameterType;
 $app = Factory::getApplication();
 $input = $app->input;
 
+$option = $input->getCmd('option');
+$view = $input->getCmd('view');
+$controller = $input->getCmd('controller');
+$task = $input->getCmd('task');
+$product_id = $input->getInt('product_id', $input->getInt('id'));
+
+$tableName = $params->get('source_table', '#__competitor_prices');
+$productIdField = $params->get('source_product_id_field', 'product_id');
+$competitorNameField = $params->get('source_name_field', 'competitor_name');
+$priceField = $params->get('source_price_field', 'price');
+$lastUpdateField = $params->get('source_last_update_field', 'last_update');
 
 $debugMode = (bool) $params->get('debug_mode', 0);
 
@@ -21,14 +32,12 @@ if ($debugMode) {
         ['mod_grit_competitor_prices']
     );
 
-    Log::add('Start module execution', Log::INFO, 'mod_grit_competitor_prices');
+    Log::add(
+        'Start module execution. table=' . $tableName . ', productIdField=' . $productIdField . ', product_id=' . $product_id,
+        Log::INFO,
+        'mod_grit_competitor_prices'
+    );
 }
-
-$option = $input->getCmd('option');
-$view = $input->getCmd('view');
-$controller = $input->getCmd('controller');
-$task = $input->getCmd('task');
-$product_id = $input->getInt('product_id', $input->getInt('id'));
 
 $isJshopping = ($option === 'com_jshopping');
 $isProductPage = ($controller === 'product' || $view === 'product' || str_starts_with($task, 'product'));
@@ -62,9 +71,11 @@ try {
 }
 
 $query = $db->getQuery(true)
-    ->select('*')
-    ->from($db->quoteName('#__competitor_prices'))
-    ->where($db->quoteName('product_id') . ' = :id')
+    ->select($db->quoteName($competitorNameField, 'competitor_name'))
+    ->select($db->quoteName($priceField, 'price'))
+    ->select($db->quoteName($lastUpdateField, 'last_update'))
+    ->from($db->quoteName($tableName))
+    ->where($db->quoteName($productIdField) . ' = :id')
     ->bind(':id', $product_id, ParameterType::INTEGER);
 
 $db->setQuery($query);
@@ -81,7 +92,7 @@ try {
 
 if (empty($analogs)) {
     if ($debugMode) {
-        Log::add('No competitor rows found for product_id=' . $product_id, Log::INFO, 'mod_grit_competitor_prices');
+        Log::add('No competitor rows found. table=' . $tableName . ', productIdField=' . $productIdField . ', product_id=' . $product_id, Log::INFO, 'mod_grit_competitor_prices');
     }
 
     return;

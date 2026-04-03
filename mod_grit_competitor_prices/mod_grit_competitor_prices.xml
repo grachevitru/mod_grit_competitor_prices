@@ -26,6 +26,41 @@
                     <option value="1">Да</option>
                 </field>
                             <field
+                    name="source_table"
+                    type="text"
+                    default="#__competitor_prices"
+                    label="Таблица цен конкурентов"
+                    description="Имя таблицы, из которой читать цены конкурентов. По умолчанию #__competitor_prices"
+                />
+                <field
+                    name="source_product_id_field"
+                    type="text"
+                    default="product_id"
+                    label="Поле ID товара"
+                    description="Название поля в таблице источника, которое хранит ID товара"
+                />
+                <field
+                    name="source_name_field"
+                    type="text"
+                    default="competitor_name"
+                    label="Поле названия конкурента"
+                    description="Название поля в таблице источника для названия конкурента"
+                />
+                <field
+                    name="source_price_field"
+                    type="text"
+                    default="price"
+                    label="Поле цены конкурента"
+                    description="Название поля в таблице источника для цены"
+                />
+                <field
+                    name="source_last_update_field"
+                    type="text"
+                    default="last_update"
+                    label="Поле даты обновления"
+                    description="Название поля в таблице источника для даты обновления"
+                />
+                <field
                     name="debug_mode"
                     type="radio"
                     default="0"
