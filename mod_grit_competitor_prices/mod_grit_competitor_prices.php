@@ -10,10 +10,11 @@ $input = $app->input;
 $option = $input->getCmd('option');
 $view = $input->getCmd('view');
 $controller = $input->getCmd('controller');
-$product_id = $input->getInt('product_id');
+$task = $input->getCmd('task');
+$product_id = $input->getInt('product_id', $input->getInt('id'));
 
 $isJshopping = ($option === 'com_jshopping');
-$isProductPage = ($controller === 'product' || $view === 'product');
+$isProductPage = ($controller === 'product' || $view === 'product' || str_starts_with($task, 'product'));
 
 if (!$isJshopping || !$isProductPage || !$product_id) {
     return;
@@ -80,4 +81,4 @@ if (empty($analogs)) {
     return;
 }
 
-require JModuleHelper::getLayoutPath('mod_grit_competitor_prices', $params->get('layout', 'default'));
+require JModuleHelper::getLayoutPath($module->module, $params->get('layout', 'default'));
