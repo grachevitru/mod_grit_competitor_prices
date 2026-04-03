@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="basic" label="COM_GRIT_COMPETITOR_PRICES_FIELDSET_BASIC">
+        <field
+            name="id"
+            type="hidden"
+        />
+
+        <field
+            name="product_id"
+            type="number"
+            required="true"
+            min="1"
+            label="COM_GRIT_COMPETITOR_PRICES_FIELD_PRODUCT_ID_LABEL"
+            description="COM_GRIT_COMPETITOR_PRICES_FIELD_PRODUCT_ID_DESC"
+        />
+
+        <field
+            name="competitor_name"
+            type="text"
+            required="true"
+            maxlength="255"
+            label="COM_GRIT_COMPETITOR_PRICES_FIELD_COMPETITOR_NAME_LABEL"
+            description="COM_GRIT_COMPETITOR_PRICES_FIELD_COMPETITOR_NAME_DESC"
+        />
+
+        <field
+            name="price"
+            type="number"
+            required="true"
+            min="0"
+            step="0.01"
+            label="COM_GRIT_COMPETITOR_PRICES_FIELD_PRICE_LABEL"
+            description="COM_GRIT_COMPETITOR_PRICES_FIELD_PRICE_DESC"
+        />
+
+        <field
+            name="last_update"
+            type="calendar"
+            format="%Y-%m-%d %H:%M:%S"
+            filter="user_utc"
+            label="COM_GRIT_COMPETITOR_PRICES_FIELD_LAST_UPDATE_LABEL"
+            description="COM_GRIT_COMPETITOR_PRICES_FIELD_LAST_UPDATE_DESC"
+            showtime="true"
+        />
+    </fieldset>
+</form>
