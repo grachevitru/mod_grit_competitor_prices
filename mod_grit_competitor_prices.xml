@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="module" version="3.1" client="site" method="upgrade">
+    <name>Цены конкурентов (JoomShopping)</name>
+    <author>Ваше Имя</author>
+    <creationDate>2026</creationDate>
+    <copyright>Copyright (C) 2026.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <version>1.1.0</version>
+    <description>Выводит таблицу цен конкурентов для текущего товара JoomShopping.</description>
+    <files>
+        <filename module="mod_grit_competitor_prices">mod_grit_competitor_prices.php</filename>
+        <filename>mod_grit_competitor_prices.xml</filename>
+        <folder>tmpl</folder>
+    </files>
+    <config>
+        <fields name="params">
+            <fieldset name="basic">
+                <field
+                    name="hide_higher_than_my_price"
+                    type="radio"
+                    default="0"
+                    label="Скрывать цены конкурентов выше моей"
+                    description="Если включено, в модуле не будут показываться цены конкурентов, которые выше цены текущего товара."
+                >
+                    <option value="0">Нет</option>
+                    <option value="1">Да</option>
+                </field>
+            </fieldset>
+        </fields>
+    </config>
+</extension>
