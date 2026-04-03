@@ -80,4 +80,4 @@ if (empty($analogs)) {
     return;
 }
 
-require JModuleHelper::getLayoutPath('mod_grit_competitor_prices', $params->get('layout', 'default'));
+require JModuleHelper::getLayoutPath($module->module, $params->get('layout', 'default'));

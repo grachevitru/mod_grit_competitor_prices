@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension type="module" version="3.1" client="site" method="upgrade">
     <name>Цены конкурентов (JoomShopping)</name>
-    <author>Ваше Имя</author>
+    <author>Grachev-IT</author>
     <creationDate>2026</creationDate>
     <copyright>Copyright (C) 2026.</copyright>
     <license>GNU General Public License version 2 or later</license>
