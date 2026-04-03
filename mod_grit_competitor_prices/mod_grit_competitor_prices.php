@@ -2,10 +2,27 @@
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Log\Log;
 use Joomla\Database\ParameterType;
 
 $app = Factory::getApplication();
 $input = $app->input;
+
+
+$debugMode = (bool) $params->get('debug_mode', 0);
+
+if ($debugMode) {
+    Log::addLogger(
+        [
+            'text_file' => 'mod_grit_competitor_prices.php',
+            'text_file_path' => 'logs',
+        ],
+        Log::ALL,
+        ['mod_grit_competitor_prices']
+    );
+
+    Log::add('Start module execution', Log::INFO, 'mod_grit_competitor_prices');
+}
 
 $option = $input->getCmd('option');
 $view = $input->getCmd('view');
@@ -17,6 +34,10 @@ $isJshopping = ($option === 'com_jshopping');
 $isProductPage = ($controller === 'product' || $view === 'product' || str_starts_with($task, 'product'));
 
 if (!$isJshopping || !$isProductPage || !$product_id) {
+    if ($debugMode) {
+        Log::add('Skip: not product page or product_id missing. option=' . $option . ', view=' . $view . ', controller=' . $controller . ', task=' . $task . ', product_id=' . $product_id, Log::WARNING, 'mod_grit_competitor_prices');
+    }
+
     return;
 }
 
@@ -33,6 +54,10 @@ $db->setQuery($queryProd);
 try {
     $myPrice = (float) $db->loadResult();
 } catch (RuntimeException $e) {
+    if ($debugMode) {
+        Log::add('Error loading product price: ' . $e->getMessage(), Log::ERROR, 'mod_grit_competitor_prices');
+    }
+
     return;
 }
 
@@ -47,10 +72,18 @@ $db->setQuery($query);
 try {
     $analogs = $db->loadObjectList();
 } catch (RuntimeException $e) {
+    if ($debugMode) {
+        Log::add('Error loading competitor rows: ' . $e->getMessage(), Log::ERROR, 'mod_grit_competitor_prices');
+    }
+
     return;
 }
 
 if (empty($analogs)) {
+    if ($debugMode) {
+        Log::add('No competitor rows found for product_id=' . $product_id, Log::INFO, 'mod_grit_competitor_prices');
+    }
+
     return;
 }
 
@@ -78,7 +111,15 @@ foreach ($analogs as $key => $item) {
 }
 
 if (empty($analogs)) {
+    if ($debugMode) {
+        Log::add('All competitor rows were filtered out. myPrice=' . $myPrice, Log::INFO, 'mod_grit_competitor_prices');
+    }
+
     return;
+}
+
+if ($debugMode) {
+    Log::add('Render module with rows=' . count($analogs) . ', myPrice=' . $myPrice . ', hideLowerThanMyPrice=' . (int) $hideLowerThanMyPrice, Log::INFO, 'mod_grit_competitor_prices');
 }
 
 require JModuleHelper::getLayoutPath($module->module, $params->get('layout', 'default'));

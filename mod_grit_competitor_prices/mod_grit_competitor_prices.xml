@@ -25,6 +25,16 @@
                     <option value="0">Нет</option>
                     <option value="1">Да</option>
                 </field>
+                            <field
+                    name="debug_mode"
+                    type="radio"
+                    default="0"
+                    label="Включить отладку модуля"
+                    description="Записывает причины, почему модуль не выводится, в logs/mod_grit_competitor_prices.php"
+                >
+                    <option value="0">Нет</option>
+                    <option value="1">Да</option>
+                </field>
             </fieldset>
         </fields>
     </config>
