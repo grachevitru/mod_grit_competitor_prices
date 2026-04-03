@@ -5,7 +5,7 @@
     <creationDate>2026-04-03</creationDate>
     <version>1.0.0</version>
     <description>COM_GRIT_COMPETITOR_PRICES_XML_DESCRIPTION</description>
-    <namespace path="administrator/components/com_grit_competitor_prices/src">Grit\Component\CompetitorPrices</namespace>
+    <namespace path="admin/src">Grit\Component\CompetitorPrices</namespace>
 
     <administration>
         <menu link="index.php?option=com_grit_competitor_prices">COM_GRIT_COMPETITOR_PRICES</menu>
@@ -13,7 +13,7 @@
             <menu link="index.php?option=com_grit_competitor_prices&amp;view=prices">COM_GRIT_COMPETITOR_PRICES_SUBMENU_PRICES</menu>
         </submenu>
 
-        <files folder="administrator/components/com_grit_competitor_prices">
+        <files folder="admin">
             <filename>com_grit_competitor_prices.php</filename>
             <filename>access.xml</filename>
             <filename>config.xml</filename>
@@ -25,27 +25,27 @@
         </files>
     </administration>
 
-    <files folder="components/com_grit_competitor_prices">
+    <files folder="site">
         <filename>com_grit_competitor_prices.php</filename>
         <folder>src</folder>
     </files>
 
     <languages>
-        <language tag="en-GB">administrator/components/com_grit_competitor_prices/language/en-GB/com_grit_competitor_prices.ini</language>
-        <language tag="en-GB">administrator/components/com_grit_competitor_prices/language/en-GB/com_grit_competitor_prices.sys.ini</language>
-        <language tag="ru-RU">administrator/components/com_grit_competitor_prices/language/ru-RU/com_grit_competitor_prices.ini</language>
-        <language tag="ru-RU">administrator/components/com_grit_competitor_prices/language/ru-RU/com_grit_competitor_prices.sys.ini</language>
+        <language tag="en-GB">admin/language/en-GB/com_grit_competitor_prices.ini</language>
+        <language tag="en-GB">admin/language/en-GB/com_grit_competitor_prices.sys.ini</language>
+        <language tag="ru-RU">admin/language/ru-RU/com_grit_competitor_prices.ini</language>
+        <language tag="ru-RU">admin/language/ru-RU/com_grit_competitor_prices.sys.ini</language>
     </languages>
 
     <install>
         <sql>
-            <file driver="mysql" charset="utf8mb4">administrator/components/com_grit_competitor_prices/sql/install/mysql/install.sql</file>
+            <file driver="mysql" charset="utf8mb4">admin/sql/install/mysql/install.sql</file>
         </sql>
     </install>
 
     <update>
         <schemas>
-            <schemapath type="mysql">administrator/components/com_grit_competitor_prices/sql/updates/mysql</schemapath>
+            <schemapath type="mysql">admin/sql/updates/mysql</schemapath>
         </schemas>
     </update>
 </extension>
