@@ -53,7 +53,7 @@ if (empty($analogs)) {
     return;
 }
 
-$hideLowerThanMyPrice = (bool) $params->get('hide_lower_than_my_price', 1);
+$hideLowerThanMyPrice = (bool) $params->get('hide_lower_than_my_price', 0);
 
 foreach ($analogs as $key => $item) {
     if (!isset($item->price)) {
