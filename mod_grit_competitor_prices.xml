@@ -9,6 +9,7 @@
     <description>Выводит таблицу цен конкурентов для текущего товара JoomShopping.</description>
     <files>
         <filename module="mod_grit_competitor_prices">mod_grit_competitor_prices.php</filename>
+        <filename>mod_competitor_prices.php</filename>
         <filename>mod_grit_competitor_prices.xml</filename>
         <folder>tmpl</folder>
     </files>
@@ -16,11 +17,11 @@
         <fields name="params">
             <fieldset name="basic">
                 <field
-                    name="hide_higher_than_my_price"
+                    name="hide_lower_than_my_price"
                     type="radio"
                     default="0"
-                    label="Скрывать цены конкурентов выше моей"
-                    description="Если включено, в модуле не будут показываться цены конкурентов, которые выше цены текущего товара."
+                    label="Скрывать цены конкурентов ниже моей"
+                    description="Если включено, в модуле не будут показываться цены конкурентов, которые ниже цены текущего товара."
                 >
                     <option value="0">Нет</option>
                     <option value="1">Да</option>
