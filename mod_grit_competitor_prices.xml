@@ -9,7 +9,6 @@
     <description>Выводит таблицу цен конкурентов для текущего товара JoomShopping.</description>
     <files>
         <filename module="mod_grit_competitor_prices">mod_grit_competitor_prices.php</filename>
-        <filename>mod_competitor_prices.php</filename>
         <filename>mod_grit_competitor_prices.xml</filename>
         <folder>tmpl</folder>
     </files>

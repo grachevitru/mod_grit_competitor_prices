@@ -53,7 +53,7 @@ if (empty($analogs)) {
     return;
 }
 
-$hideLowerThanMyPrice = (bool) $params->get('hide_lower_than_my_price', $params->get('hide_higher_than_my_price', 0));
+$hideLowerThanMyPrice = (bool) $params->get('hide_lower_than_my_price', 0);
 
 foreach ($analogs as $key => $item) {
     if (!isset($item->price)) {
@@ -80,4 +80,4 @@ if (empty($analogs)) {
     return;
 }
 
-require JModuleHelper::getLayoutPath($module->module, $params->get('layout', 'default'));
+require JModuleHelper::getLayoutPath('mod_grit_competitor_prices', $params->get('layout', 'default'));
