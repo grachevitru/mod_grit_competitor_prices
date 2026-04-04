@@ -27,6 +27,11 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $view = $input->getCmd('view');
         $task = $input->getCmd('task');
         $productId = $input->getInt('product_id', $input->getInt('id'));
+        $cid = $input->get('cid', [], 'array');
+
+        if ($productId <= 0 && !empty($cid)) {
+            $productId = (int) reset($cid);
+        }
 
         if ($option !== 'com_jshopping') {
             return;
@@ -38,7 +43,7 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $isProductEdit = (($isProductsController || $isProductView) && $isEditTask && $productId > 0);
 
         if ($debugLogging) {
-            Log::add('Detected com_jshopping page. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId . ', isProductEdit=' . (int) $isProductEdit, Log::INFO, 'plg_system_grit_competitor_tab');
+            Log::add('Detected com_jshopping page. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId . ', cid=' . json_encode($cid) . ', isProductEdit=' . (int) $isProductEdit, Log::INFO, 'plg_system_grit_competitor_tab');
         }
 
         if (!$isProductEdit) {

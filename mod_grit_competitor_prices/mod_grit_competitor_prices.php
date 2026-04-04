@@ -12,7 +12,7 @@ $option = $input->getCmd('option');
 $view = $input->getCmd('view');
 $controller = $input->getCmd('controller');
 $task = $input->getCmd('task');
-$product_id = $input->getInt('product_id', $input->getInt('id', $input->getInt('pid')));
+$product_id = $input->getInt('product_id', $input->getInt('id'));
 
 $tableName = $params->get('source_table', '#__competitor_prices');
 $productIdField = $params->get('source_product_id_field', 'product_id');
@@ -40,8 +40,7 @@ if ($debugMode) {
 }
 
 $isJshopping = ($option === 'com_jshopping');
-$isTaskProduct = ($task !== '' && strpos($task, 'product') === 0);
-$isProductPage = ($controller === 'product' || $view === 'product' || $isTaskProduct);
+$isProductPage = ($controller === 'product' || $view === 'product' || str_starts_with($task, 'product'));
 
 if (!$isJshopping || !$isProductPage || !$product_id) {
     if ($debugMode) {
