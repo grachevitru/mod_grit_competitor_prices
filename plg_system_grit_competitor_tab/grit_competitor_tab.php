@@ -37,12 +37,17 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             Log::add('Detected com_jshopping admin page. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId, Log::INFO, 'plg_system_grit_competitor_tab');
         }
 
-        $isProductEdit = ($controller === 'product' || $view === 'product' || str_contains($task, 'product'));
+        $isProductsController = in_array($controller, ['product', 'products'], true);
+        $isProductView = ($view === 'product' || $view === 'products');
+        $isEditTask = in_array($task, ['edit', 'apply', 'save'], true) || str_contains($task, 'product');
 
-        if (!$isProductEdit || !$productId) {
+        $isProductEdit = (($isProductsController || $isProductView) && $isEditTask && $productId > 0);
+
+        if (!$isProductEdit) {
             if ($debugLogging) {
-                Log::add('Skip injection: not product edit page or missing product id', Log::INFO, 'plg_system_grit_competitor_tab');
+                Log::add('Skip injection. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId . ', isProductsController=' . (int) $isProductsController . ', isProductView=' . (int) $isProductView . ', isEditTask=' . (int) $isEditTask, Log::INFO, 'plg_system_grit_competitor_tab');
             }
+
             return;
         }
 
