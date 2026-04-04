@@ -12,13 +12,7 @@ defined('_JEXEC') or die;
     <ul>
         <?php foreach ($analogs as $row) : ?>
             <li>
-                <?php if (!empty($row->competitor_url)) : ?>
-                    <a class="analog-name" href="<?php echo htmlspecialchars($row->competitor_url); ?>" target="_blank" rel="noopener noreferrer">
-                        <?php echo htmlspecialchars($row->competitor_name); ?>
-                    </a>
-                <?php else : ?>
-                    <span class="analog-name"><?php echo htmlspecialchars($row->competitor_name); ?></span>
-                <?php endif; ?>
+                <span class="analog-name"><?php echo htmlspecialchars($row->competitor_name); ?></span>
                 <span class="analog-price"><?php echo htmlspecialchars($row->price); ?> ₽</span>
 
                 <?php if (!empty($row->last_update)) : ?>

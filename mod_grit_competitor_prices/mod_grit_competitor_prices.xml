@@ -54,13 +54,6 @@
                     description="Название поля в таблице источника для цены"
                 />
                 <field
-                    name="source_url_field"
-                    type="text"
-                    default="competitor_url"
-                    label="Поле ссылки конкурента"
-                    description="Название поля в таблице источника для ссылки на страницу конкурента"
-                />
-                <field
                     name="source_last_update_field"
                     type="text"
                     default="last_update"
