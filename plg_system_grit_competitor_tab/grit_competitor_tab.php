@@ -68,8 +68,10 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         );
 
         $ajaxUrl = 'index.php?option=com_ajax&plugin=grit_competitor_tab&format=json';
+
         $paneHtml = '<div class="alert alert-info" style="margin-top:10px;">Добавление цены конкурента для товара ID: ' . (int) $productId . '</div>'
             . '<form id="grit-competitor-form" style="max-width:820px;">'
+            . '<input type="hidden" name="id" value="">'
             . '<input type="hidden" name="product_id" value="' . (int) $productId . '">'
             . '<div class="control-group"><label>Название конкурента</label><input class="form-control" type="text" name="competitor_name" required></div>'
             . '<div class="control-group"><label>URL конкурента</label><input class="form-control" type="url" name="url"></div>'
@@ -85,9 +87,10 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             . 'var ajaxUrl=' . json_encode($ajaxUrl) . ';'
             . 'var paneHtml=' . json_encode($paneHtml) . ';'
             . 'function esc(v){return String(v||"").replace(/[&<>\"\']/g,function(s){return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\'":"&#039;"})[s];});}'
-            . 'function render(items){var el=document.getElementById("grit-competitor-list");if(!el){return;} if(!items||!items.length){el.innerHTML="<div class=\"alert alert-light\">Записей пока нет</div>";return;} var h="<table class=\"table table-sm\"><thead><tr><th>ID</th><th>Конкурент</th><th>URL</th><th>Селектор</th><th>Цена</th><th>Обновлено</th></tr></thead><tbody>";items.forEach(function(it){h+="<tr><td>"+esc(it.id)+"</td><td>"+esc(it.competitor_name)+"</td><td>"+esc(it.url)+"</td><td>"+esc(it.selector)+"</td><td>"+esc(it.price)+"</td><td>"+esc(it.last_update)+"</td></tr>";});h+="</tbody></table>";el.innerHTML=h;}'
-            . 'function loadList(){fetch(ajaxUrl+"&action=list&product_id="+pid,{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){if(d&&d.success&&d.data&&d.data.items){render(d.data.items);}else{render([]);}}).catch(function(){render([]);});}'
-            . 'function init(){var tc=document.querySelector(".tab-content");if(!tc){return;} if(!document.getElementById("grit-competitor-tab-pane")){var p=document.createElement("div");p.className="tab-pane";p.id="grit-competitor-tab-pane";p.innerHTML=paneHtml;tc.appendChild(p);} var f=document.getElementById("grit-competitor-form");if(f&&!f.dataset.binded){f.dataset.binded="1";f.addEventListener("submit",function(e){e.preventDefault();var fd=new FormData(f);fd.append("action","save");fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){var r=document.getElementById("grit-competitor-result");if(d&&d.success){r.innerHTML="<span style=\\"color:green\\">Сохранено</span>";f.reset();f.querySelector("input[name=product_id]").value=pid;loadList();}else{r.innerHTML="<span style=\\"color:#a00\\">Ошибка сохранения</span>";}}).catch(function(){var r=document.getElementById("grit-competitor-result");r.innerHTML="<span style=\\"color:#a00\\">Ошибка запроса</span>";});});} loadList();}'
+            . 'function bindActions(items,f){var listEl=document.getElementById("grit-competitor-list");if(!listEl||!f){return;} Array.prototype.forEach.call(listEl.querySelectorAll(".grit-edit"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");var row=(items||[]).find(function(x){return String(x.id)===String(id);});if(!row){return;}f.querySelector("input[name=id]").value=row.id||"";f.querySelector("input[name=competitor_name]").value=row.competitor_name||"";f.querySelector("input[name=url]").value=row.url||"";f.querySelector("input[name=selector]").value=row.selector||"";f.querySelector("input[name=price]").value=row.price||"";window.scrollTo({top:listEl.offsetTop-120,behavior:"smooth"});});}); Array.prototype.forEach.call(listEl.querySelectorAll(".grit-del"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");if(!confirm("Удалить запись?")){return;}var fd=new FormData();fd.append("action","delete");fd.append("id",id);fd.append("product_id",pid);fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(){loadList();}).catch(function(){});});});}'
+            . 'function render(items){var listEl=document.getElementById("grit-competitor-list");var f=document.getElementById("grit-competitor-form");if(!listEl){return;} if(!items||!items.length){listEl.innerHTML="<div class=\\"alert alert-light\\">Записей пока нет</div>";return;} var h="<table class=\\"table table-sm\\"><thead><tr><th>ID</th><th>Конкурент</th><th>URL</th><th>Селектор</th><th>Цена</th><th>Обновлено</th><th>Действия</th></tr></thead><tbody>";items.forEach(function(it){h+="<tr><td>"+esc(it.id)+"</td><td>"+esc(it.competitor_name)+"</td><td>"+esc(it.url)+"</td><td>"+esc(it.selector)+"</td><td>"+esc(it.price)+"</td><td>"+esc(it.last_update)+"</td><td><button type=\\"button\\" class=\\"btn btn-xs btn-primary grit-edit\\" data-id=\\""+esc(it.id)+"\\">Ред.</button> <button type=\\"button\\" class=\\"btn btn-xs btn-danger grit-del\\" data-id=\\""+esc(it.id)+"\\">Удал.</button></td></tr>";});h+="</tbody></table>";listEl.innerHTML=h;bindActions(items,f);}'
+            . 'function loadList(){fetch(ajaxUrl+"&action=list&product_id="+pid,{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){var items=[];if(d&&d.success){if(d.data&&d.data.items){items=d.data.items;}else if(Array.isArray(d.data)){items=d.data;}}render(items);}).catch(function(){render([]);});}'
+            . 'function init(){var tc=document.querySelector(".tab-content");if(!tc){return;} if(!document.getElementById("grit-competitor-tab-pane")){var p=document.createElement("div");p.className="tab-pane";p.id="grit-competitor-tab-pane";p.innerHTML=paneHtml;tc.appendChild(p);} var f=document.getElementById("grit-competitor-form");if(f&&!f.dataset.binded){f.dataset.binded="1";f.addEventListener("submit",function(e){e.preventDefault();var fd=new FormData(f);fd.append("action","save");fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){var r=document.getElementById("grit-competitor-result");if(d&&d.success){r.innerHTML="<span style=\\"color:green\\">Сохранено</span>";f.reset();f.querySelector("input[name=product_id]").value=pid;f.querySelector("input[name=id]").value="";loadList();}else{r.innerHTML="<span style=\\"color:#a00\\">Ошибка сохранения</span>";}}).catch(function(){var r=document.getElementById("grit-competitor-result");r.innerHTML="<span style=\\"color:#a00\\">Ошибка запроса</span>";});});} loadList();}'
             . 'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}'
             . '})();</script>';
 
@@ -111,6 +114,7 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
 
         $action = $input->getCmd('action', 'save');
         $productId = $input->getInt('product_id');
+        $id = $input->getInt('id');
 
         if ($action === 'list') {
             if ($productId <= 0) {
@@ -132,6 +136,21 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
 
             $db->setQuery($query);
             return ['items' => $db->loadAssocList() ?: []];
+        }
+
+        if ($action === 'delete') {
+            if ($id <= 0) {
+                throw new RuntimeException('Invalid id');
+            }
+
+            $query = $db->getQuery(true)
+                ->delete($db->quoteName('#__competitor_prices'))
+                ->where($db->quoteName('id') . ' = ' . (int) $id);
+
+            $db->setQuery($query);
+            $db->execute();
+
+            return ['deleted' => true];
         }
 
         $competitorName = trim($input->getString('competitor_name'));
@@ -170,14 +189,29 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             $values[] = date('Y-m-d H:i:s');
         }
 
-        $query = $db->getQuery(true)
-            ->insert($db->quoteName('#__competitor_prices'))
-            ->columns(array_map([$db, 'quoteName'], $columns))
-            ->values(implode(',', array_map([$db, 'quote'], $values)));
+        if ($id > 0) {
+            $set = [];
+            foreach ($columns as $idx => $column) {
+                if ($column === 'product_id') {
+                    continue;
+                }
+                $set[] = $db->quoteName($column) . ' = ' . $db->quote($values[$idx]);
+            }
+
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__competitor_prices'))
+                ->set($set)
+                ->where($db->quoteName('id') . ' = ' . (int) $id);
+        } else {
+            $query = $db->getQuery(true)
+                ->insert($db->quoteName('#__competitor_prices'))
+                ->columns(array_map([$db, 'quoteName'], $columns))
+                ->values(implode(',', array_map([$db, 'quote'], $values)));
+        }
 
         $db->setQuery($query);
         $db->execute();
 
-        return ['saved' => true];
+        return ['saved' => true, 'id' => $id ?: (int) $db->insertid()];
     }
 }
