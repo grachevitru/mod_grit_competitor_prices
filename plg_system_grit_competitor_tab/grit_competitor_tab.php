@@ -133,10 +133,19 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $view = $input->getCmd('view');
         $task = $input->getCmd('task');
         $productId = $input->getInt('product_id', $input->getInt('id'));
+        $postProductId = $input->post->getInt('product_id', $input->post->getInt('id'));
         $cid = $input->get('cid', [], 'array');
+        $jform = $input->post->get('jform', [], 'array');
+        $jformProductId = isset($jform['product_id']) ? (int) $jform['product_id'] : (isset($jform['id']) ? (int) $jform['id'] : 0);
 
         if ($productId <= 0 && !empty($cid)) {
             $productId = (int) reset($cid);
+        }
+        if ($productId <= 0 && $postProductId > 0) {
+            $productId = $postProductId;
+        }
+        if ($productId <= 0 && $jformProductId > 0) {
+            $productId = $jformProductId;
         }
 
         if ($option !== 'com_jshopping') {
@@ -148,13 +157,25 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $isEditTask = in_array($task, ['edit', 'apply', 'save'], true) || str_contains($task, 'product');
         $isProductEdit = (($isProductsController || $isProductView) && $isEditTask && $productId > 0);
 
-        $this->debugLog('Detected com_jshopping page. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId . ', cid=' . json_encode($cid) . ', isProductEdit=' . (int) $isProductEdit);
+        $this->debugLog('Detected com_jshopping page. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId . ', postProductId=' . $postProductId . ', jformProductId=' . $jformProductId . ', cid=' . json_encode($cid) . ', isProductEdit=' . (int) $isProductEdit);
+
+        $body = '';
+        if (!$isProductEdit && ($isProductsController || $isProductView) && $isEditTask) {
+            $body = $app->getBody();
+            if (preg_match('/name="product_id"[^>]*value="(\d+)"/i', $body, $m) || preg_match('/name="id"[^>]*value="(\d+)"/i', $body, $m)) {
+                $productId = (int) $m[1];
+                $isProductEdit = ($productId > 0);
+                $this->debugLog('Product ID recovered from HTML body (fallback): productId=' . $productId . ', isProductEdit=' . (int) $isProductEdit);
+            }
+        }
 
         if (!$isProductEdit) {
             return;
         }
 
-        $body = $app->getBody();
+        if ($body === '') {
+            $body = $app->getBody();
+        }
 
         if (strpos($body, 'grit-competitor-tab-link') !== false) {
             return;
