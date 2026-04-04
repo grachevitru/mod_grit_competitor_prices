@@ -47,6 +47,11 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         Log::add($message, $level, 'plg_system_grit_competitor_tab');
     }
 
+    private function makeBackupKey(int $productId): string
+    {
+        return 'grit_cp_backup_' . $productId;
+    }
+
     public function onAfterInitialise(): void
     {
         if (!$this->isDebugEnabled()) {
@@ -115,6 +120,23 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
                 . ', grit_cp_id=' . ($post['grit_cp_id'] ?? '')
                 . ', grit_cp_product_id=' . ($post['grit_cp_product_id'] ?? '')
             );
+
+            if ($productId > 0) {
+                try {
+                    $queryRows = $db->getQuery(true)
+                        ->select('*')
+                        ->from($db->quoteName('#__competitor_prices'))
+                        ->where($db->quoteName('product_id') . ' = ' . (int) $productId)
+                        ->order($db->quoteName('id') . ' DESC');
+                    $db->setQuery($queryRows);
+                    $rows = $db->loadAssocList() ?: [];
+
+                    $app->getSession()->set($this->makeBackupKey($productId), ['ts' => time(), 'rows' => $rows]);
+                    $this->debugLog('Backup stored before save/apply: productId=' . $productId . ', rows=' . count($rows));
+                } catch (Throwable $e) {
+                    $this->debugLog('Backup creation failed: ' . $e->getMessage(), Log::ERROR);
+                }
+            }
         }
     }
 
@@ -171,6 +193,49 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
 
         if (!$isProductEdit) {
             return;
+        }
+
+        try {
+            $session = $app->getSession();
+            $backup = $session->get($this->makeBackupKey($productId), null);
+            if (is_array($backup) && !empty($backup['rows']) && isset($backup['ts']) && (time() - (int) $backup['ts'] <= 300)) {
+                $db = Factory::getDbo();
+                $checkQuery = $db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__competitor_prices'))
+                    ->where($db->quoteName('product_id') . ' = ' . (int) $productId);
+                $db->setQuery($checkQuery);
+                $existingCount = (int) $db->loadResult();
+
+                if ($existingCount === 0) {
+                    $columnsInfo = $db->getTableColumns('#__competitor_prices', false);
+                    foreach ($backup['rows'] as $row) {
+                        $insertColumns = [];
+                        $insertValues = [];
+                        foreach ($row as $column => $value) {
+                            if ($column === 'id' || !isset($columnsInfo[$column])) {
+                                continue;
+                            }
+                            $insertColumns[] = $db->quoteName($column);
+                            $insertValues[] = $db->quote($value);
+                        }
+                        if (!$insertColumns) {
+                            continue;
+                        }
+                        $insertQuery = $db->getQuery(true)
+                            ->insert($db->quoteName('#__competitor_prices'))
+                            ->columns($insertColumns)
+                            ->values(implode(',', $insertValues));
+                        $db->setQuery($insertQuery);
+                        $db->execute();
+                    }
+                    $this->debugLog('Backup restored after save/apply wipe: productId=' . $productId . ', rows=' . count($backup['rows']), Log::WARNING);
+                }
+
+                $session->clear($this->makeBackupKey($productId));
+            }
+        } catch (Throwable $e) {
+            $this->debugLog('Backup restore check failed: ' . $e->getMessage(), Log::ERROR);
         }
 
         if ($body === '') {
