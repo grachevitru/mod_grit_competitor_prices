@@ -78,6 +78,11 @@ $query = $db->getQuery(true)
     ->where($db->quoteName($productIdField) . ' = :id')
     ->bind(':id', $product_id, ParameterType::INTEGER);
 
+$sourceColumns = $db->getTableColumns($tableName, false);
+if (isset($sourceColumns['published'])) {
+    $query->where($db->quoteName('published') . ' = 1');
+}
+
 $db->setQuery($query);
 
 try {
