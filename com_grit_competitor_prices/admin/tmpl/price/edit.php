@@ -13,6 +13,7 @@ HTMLHelper::_('behavior.keepalive');
         <div class="col-lg-8">
             <?php echo $this->form->renderField('product_id'); ?>
             <?php echo $this->form->renderField('competitor_name'); ?>
+            <?php echo $this->form->renderField('competitor_url'); ?>
             <?php echo $this->form->renderField('price'); ?>
             <?php echo $this->form->renderField('last_update'); ?>
         </div>

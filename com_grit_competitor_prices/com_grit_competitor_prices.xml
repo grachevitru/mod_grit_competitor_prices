@@ -3,7 +3,7 @@
     <name>COM_GRIT_COMPETITOR_PRICES</name>
     <author>Grachev-IT</author>
     <creationDate>2026-04-03</creationDate>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <description>COM_GRIT_COMPETITOR_PRICES_XML_DESCRIPTION</description>
     <namespace path="admin/src">Grit\Component\CompetitorPrices</namespace>
 

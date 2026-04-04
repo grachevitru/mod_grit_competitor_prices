@@ -26,6 +26,7 @@ HTMLHelper::_('behavior.multiselect');
                 <th width="1%" class="text-center"><?php echo HTMLHelper::_('grid.checkall'); ?></th>
                 <th><?php echo Text::_('COM_GRIT_COMPETITOR_PRICES_FIELD_PRODUCT_ID_LABEL'); ?></th>
                 <th><?php echo Text::_('COM_GRIT_COMPETITOR_PRICES_FIELD_COMPETITOR_NAME_LABEL'); ?></th>
+                <th><?php echo Text::_('COM_GRIT_COMPETITOR_PRICES_FIELD_COMPETITOR_URL_LABEL'); ?></th>
                 <th><?php echo Text::_('COM_GRIT_COMPETITOR_PRICES_FIELD_PRICE_LABEL'); ?></th>
                 <th><?php echo Text::_('COM_GRIT_COMPETITOR_PRICES_FIELD_LAST_UPDATE_LABEL'); ?></th>
                 <th width="1%">ID</th>
@@ -40,6 +41,13 @@ HTMLHelper::_('behavior.multiselect');
                         <a href="index.php?option=com_grit_competitor_prices&amp;task=price.edit&amp;id=<?php echo (int) $item->id; ?>">
                             <?php echo $this->escape($item->competitor_name); ?>
                         </a>
+                    </td>
+                    <td>
+                        <?php if (!empty($item->competitor_url)) : ?>
+                            <a href="<?php echo $this->escape($item->competitor_url); ?>" target="_blank" rel="noopener noreferrer">
+                                <?php echo $this->escape($item->competitor_url); ?>
+                            </a>
+                        <?php endif; ?>
                     </td>
                     <td><?php echo $this->escape($item->price); ?></td>
                     <td><?php echo $this->escape($item->last_update); ?></td>

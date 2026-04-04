@@ -24,6 +24,15 @@
             description="COM_GRIT_COMPETITOR_PRICES_FIELD_COMPETITOR_NAME_DESC"
         />
 
+
+        <field
+            name="competitor_url"
+            type="url"
+            maxlength="1024"
+            label="COM_GRIT_COMPETITOR_PRICES_FIELD_COMPETITOR_URL_LABEL"
+            description="COM_GRIT_COMPETITOR_PRICES_FIELD_COMPETITOR_URL_DESC"
+        />
+
         <field
             name="price"
             type="number"

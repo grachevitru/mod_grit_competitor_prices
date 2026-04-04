@@ -19,6 +19,7 @@ $productIdField = $params->get('source_product_id_field', 'product_id');
 $competitorNameField = $params->get('source_name_field', 'competitor_name');
 $priceField = $params->get('source_price_field', 'price');
 $lastUpdateField = $params->get('source_last_update_field', 'last_update');
+$competitorUrlField = $params->get('source_url_field', 'competitor_url');
 
 $debugMode = (bool) $params->get('debug_mode', 0);
 
@@ -74,6 +75,7 @@ $query = $db->getQuery(true)
     ->select($db->quoteName($competitorNameField, 'competitor_name'))
     ->select($db->quoteName($priceField, 'price'))
     ->select($db->quoteName($lastUpdateField, 'last_update'))
+    ->select($db->quoteName($competitorUrlField, 'competitor_url'))
     ->from($db->quoteName($tableName))
     ->where($db->quoteName($productIdField) . ' = :id')
     ->bind(':id', $product_id, ParameterType::INTEGER);
