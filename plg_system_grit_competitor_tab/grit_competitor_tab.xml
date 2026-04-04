@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" group="system" method="upgrade">
+    <name>PLG_SYSTEM_GRIT_COMPETITOR_TAB</name>
+    <author>Grachev-IT</author>
+    <version>1.0.0</version>
+    <description>PLG_SYSTEM_GRIT_COMPETITOR_TAB_DESC</description>
+    <files>
+        <filename plugin="grit_competitor_tab">grit_competitor_tab.php</filename>
+        <folder>language</folder>
+    </files>
+</extension>

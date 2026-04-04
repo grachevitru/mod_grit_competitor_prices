@@ -4,6 +4,7 @@ namespace Grit\Component\CompetitorPrices\Administrator\Model;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\AdminModel;
 
 class PriceModel extends AdminModel
@@ -34,6 +35,13 @@ class PriceModel extends AdminModel
 
         if (!isset($data->last_update) || empty($data->last_update)) {
             $data->last_update = date('Y-m-d H:i:s');
+        }
+
+        $input = Factory::getApplication()->input;
+        $prefillProductId = $input->getInt('product_id');
+
+        if (empty($data->product_id) && $prefillProductId > 0) {
+            $data->product_id = $prefillProductId;
         }
 
         return $data;
