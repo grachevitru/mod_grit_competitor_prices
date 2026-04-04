@@ -12,7 +12,11 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
     {
         $app = Factory::getApplication();
 
-        Log::addLogger(['text_file' => 'plg_system_grit_competitor_tab.php', 'text_file_path' => 'logs'], Log::ALL, ['plg_system_grit_competitor_tab']);
+        $debugLogging = (bool) $this->params->get('debug_logging', 0);
+
+        if ($debugLogging) {
+            Log::addLogger(['text_file' => 'plg_system_grit_competitor_tab.php', 'text_file_path' => 'logs'], Log::ALL, ['plg_system_grit_competitor_tab']);
+        }
 
         if (!$app->isClient('administrator')) {
             return;
@@ -29,12 +33,16 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             return;
         }
 
-        Log::add('Detected com_jshopping admin page. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId, Log::INFO, 'plg_system_grit_competitor_tab');
+        if ($debugLogging) {
+            Log::add('Detected com_jshopping admin page. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId, Log::INFO, 'plg_system_grit_competitor_tab');
+        }
 
         $isProductEdit = ($controller === 'product' || $view === 'product' || str_contains($task, 'product'));
 
         if (!$isProductEdit || !$productId) {
-            Log::add('Skip injection: not product edit page or missing product id', Log::INFO, 'plg_system_grit_competitor_tab');
+            if ($debugLogging) {
+                Log::add('Skip injection: not product edit page or missing product id', Log::INFO, 'plg_system_grit_competitor_tab');
+            }
             return;
         }
 
@@ -63,6 +71,8 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             . '})();</script>';
 
         $app->setBody(str_replace('</body>', $html . '</body>', $body));
-        Log::add('Injected competitor prices tab/fallback for productId=' . $productId, Log::INFO, 'plg_system_grit_competitor_tab');
+        if ($debugLogging) {
+            Log::add('Injected competitor prices tab/fallback for productId=' . $productId, Log::INFO, 'plg_system_grit_competitor_tab');
+        }
     }
 }
