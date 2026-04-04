@@ -61,7 +61,6 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             '~<ul[^>]*class="[^"]*nav-tabs[^"]*"[^>]*>(.*?)</ul>~is',
             static function ($matches) use ($tabLinkHtml, &$tabsInjected) {
                 $tabsInjected = true;
-
                 return str_replace('</ul>', $tabLinkHtml . '</ul>', $matches[0]);
             },
             $body,
@@ -69,19 +68,26 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         );
 
         $ajaxUrl = 'index.php?option=com_ajax&plugin=grit_competitor_tab&format=json';
+        $paneHtml = '<div class="alert alert-info" style="margin-top:10px;">Добавление цены конкурента для товара ID: ' . (int) $productId . '</div>'
+            . '<form id="grit-competitor-form" style="max-width:820px;">'
+            . '<input type="hidden" name="product_id" value="' . (int) $productId . '">'
+            . '<div class="control-group"><label>Название конкурента</label><input class="form-control" type="text" name="competitor_name" required></div>'
+            . '<div class="control-group"><label>URL конкурента</label><input class="form-control" type="url" name="url"></div>'
+            . '<div class="control-group"><label>Селектор цены</label><input class="form-control" type="text" name="selector"></div>'
+            . '<div class="control-group"><label>Цена</label><input class="form-control" type="text" name="price"></div>'
+            . '<div class="control-group" style="margin-top:10px;"><button class="btn btn-success" type="submit">Сохранить</button></div>'
+            . '<div id="grit-competitor-result" style="margin-top:10px;"></div>'
+            . '</form>'
+            . '<div id="grit-competitor-list" style="margin-top:15px;"></div>';
 
         $script = '<script>(function(){'
             . 'var pid=' . (int) $productId . ';'
-            . 'function init(){'
-            . 'var tabContent=document.querySelector(".tab-content");'
-            . 'if(!tabContent||document.getElementById("grit-competitor-tab-pane")){return;}'
-            . 'var pane=document.createElement("div");pane.className="tab-pane";pane.id="grit-competitor-tab-pane";'
-            . 'pane.innerHTML=' . json_encode('<div class="alert alert-info" style="margin-top:10px;">Добавление цены конкурента для товара ID: ' . (int) $productId . '</div><form id="grit-competitor-form" style="max-width:820px;"><input type="hidden" name="product_id" value="' . (int) $productId . '"><div class="control-group"><label>Название конкурента</label><input class="form-control" type="text" name="competitor_name" required></div><div class="control-group"><label>URL конкурента</label><input class="form-control" type="url" name="url"></div><div class="control-group"><label>Селектор цены</label><input class="form-control" type="text" name="selector"></div><div class="control-group"><label>Цена</label><input class="form-control" type="text" name="price"></div><div class="control-group" style="margin-top:10px;"><button class="btn btn-success" type="submit">Сохранить</button></div><div id="grit-competitor-result" style="margin-top:10px;"></div></form>') . ';'
-            . 'tabContent.appendChild(pane);'
-            . 'var f=document.getElementById("grit-competitor-form");'
-            . 'if(!f){return;}'
-            . 'f.addEventListener("submit",function(e){e.preventDefault();var fd=new FormData(f);fetch("' . $ajaxUrl . '",{method:"POST",body:fd,credentials:"same-origin"}).then(r=>r.json()).then(function(d){var el=document.getElementById("grit-competitor-result");if(d&&d.success){el.innerHTML="<span style=\\"color:green\\">Сохранено</span>";f.reset();f.querySelector("input[name=product_id]").value=pid;}else{el.innerHTML="<span style=\\"color:#a00\\">Ошибка сохранения</span>";}}).catch(function(){var el=document.getElementById("grit-competitor-result");el.innerHTML="<span style=\\"color:#a00\\">Ошибка запроса</span>";});});'
-            . '}'
+            . 'var ajaxUrl=' . json_encode($ajaxUrl) . ';'
+            . 'var paneHtml=' . json_encode($paneHtml) . ';'
+            . 'function esc(v){return String(v||"").replace(/[&<>\"\']/g,function(s){return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\'":"&#039;"})[s];});}'
+            . 'function render(items){var el=document.getElementById("grit-competitor-list");if(!el){return;} if(!items||!items.length){el.innerHTML="<div class=\"alert alert-light\">Записей пока нет</div>";return;} var h="<table class=\"table table-sm\"><thead><tr><th>ID</th><th>Конкурент</th><th>URL</th><th>Селектор</th><th>Цена</th><th>Обновлено</th></tr></thead><tbody>";items.forEach(function(it){h+="<tr><td>"+esc(it.id)+"</td><td>"+esc(it.competitor_name)+"</td><td>"+esc(it.url)+"</td><td>"+esc(it.selector)+"</td><td>"+esc(it.price)+"</td><td>"+esc(it.last_update)+"</td></tr>";});h+="</tbody></table>";el.innerHTML=h;}'
+            . 'function loadList(){fetch(ajaxUrl+"&action=list&product_id="+pid,{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){if(d&&d.success&&d.data&&d.data.items){render(d.data.items);}else{render([]);}}).catch(function(){render([]);});}'
+            . 'function init(){var tc=document.querySelector(".tab-content");if(!tc){return;} if(!document.getElementById("grit-competitor-tab-pane")){var p=document.createElement("div");p.className="tab-pane";p.id="grit-competitor-tab-pane";p.innerHTML=paneHtml;tc.appendChild(p);} var f=document.getElementById("grit-competitor-form");if(f&&!f.dataset.binded){f.dataset.binded="1";f.addEventListener("submit",function(e){e.preventDefault();var fd=new FormData(f);fd.append("action","save");fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){var r=document.getElementById("grit-competitor-result");if(d&&d.success){r.innerHTML="<span style=\\"color:green\\">Сохранено</span>";f.reset();f.querySelector("input[name=product_id]").value=pid;loadList();}else{r.innerHTML="<span style=\\"color:#a00\\">Ошибка сохранения</span>";}}).catch(function(){var r=document.getElementById("grit-competitor-result");r.innerHTML="<span style=\\"color:#a00\\">Ошибка запроса</span>";});});} loadList();}'
             . 'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}'
             . '})();</script>';
 
@@ -103,7 +109,31 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $input = Factory::getApplication()->input;
         $db = Factory::getDbo();
 
+        $action = $input->getCmd('action', 'save');
         $productId = $input->getInt('product_id');
+
+        if ($action === 'list') {
+            if ($productId <= 0) {
+                return ['items' => []];
+            }
+
+            $columnsInfo = $db->getTableColumns('#__competitor_prices', false);
+            $select = ['id', 'product_id', 'competitor_name'];
+            $select[] = isset($columnsInfo['url']) ? 'url' : (isset($columnsInfo['competitor_url']) ? 'competitor_url AS url' : "'' AS url");
+            $select[] = isset($columnsInfo['selector']) ? 'selector' : "'' AS selector";
+            $select[] = isset($columnsInfo['price']) ? 'price' : "'' AS price";
+            $select[] = isset($columnsInfo['last_update']) ? 'last_update' : "'' AS last_update";
+
+            $query = $db->getQuery(true)
+                ->select($select)
+                ->from($db->quoteName('#__competitor_prices'))
+                ->where($db->quoteName('product_id') . ' = ' . (int) $productId)
+                ->order($db->quoteName('id') . ' DESC');
+
+            $db->setQuery($query);
+            return ['items' => $db->loadAssocList() ?: []];
+        }
+
         $competitorName = trim($input->getString('competitor_name'));
         $url = trim($input->getString('url'));
         $selector = trim($input->getString('selector'));
