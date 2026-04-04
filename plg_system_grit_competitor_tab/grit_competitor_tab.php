@@ -54,10 +54,6 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
 
     public function onAfterInitialise(): void
     {
-        if (!$this->isDebugEnabled()) {
-            return;
-        }
-
         $app = Factory::getApplication();
         if (!$app->isClient('administrator')) {
             return;
@@ -68,7 +64,9 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             return;
         }
 
-        $this->initDebugLogger();
+        if ($this->isDebugEnabled()) {
+            $this->initDebugLogger();
+        }
 
         $productId = $input->getInt('product_id', $input->getInt('id'));
         $cid = $input->get('cid', [], 'array');
@@ -79,47 +77,53 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $this->debugTrackedProductId = $productId > 0 ? $productId : null;
 
         $db = Factory::getDbo();
-        try {
-            $qTotal = $db->getQuery(true)
-                ->select('COUNT(*)')
-                ->from($db->quoteName('#__competitor_prices'));
-            $db->setQuery($qTotal);
-            $this->debugStartTotalCount = (int) $db->loadResult();
-
-            if ($this->debugTrackedProductId) {
-                $qProduct = $db->getQuery(true)
+        if ($this->isDebugEnabled()) {
+            try {
+                $qTotal = $db->getQuery(true)
                     ->select('COUNT(*)')
-                    ->from($db->quoteName('#__competitor_prices'))
-                    ->where($db->quoteName('product_id') . ' = ' . (int) $this->debugTrackedProductId);
-                $db->setQuery($qProduct);
-                $this->debugStartProductCount = (int) $db->loadResult();
+                    ->from($db->quoteName('#__competitor_prices'));
+                $db->setQuery($qTotal);
+                $this->debugStartTotalCount = (int) $db->loadResult();
+
+                if ($this->debugTrackedProductId) {
+                    $qProduct = $db->getQuery(true)
+                        ->select('COUNT(*)')
+                        ->from($db->quoteName('#__competitor_prices'))
+                        ->where($db->quoteName('product_id') . ' = ' . (int) $this->debugTrackedProductId);
+                    $db->setQuery($qProduct);
+                    $this->debugStartProductCount = (int) $db->loadResult();
+                }
+            } catch (Throwable $e) {
+                $this->debugLog('Initial debug count query failed: ' . $e->getMessage(), Log::ERROR);
             }
-        } catch (Throwable $e) {
-            $this->debugLog('Initial debug count query failed: ' . $e->getMessage(), Log::ERROR);
         }
 
         $post = $input->post->getArray();
         $task = $input->getCmd('task');
-        $method = $input->getMethod();
-        $this->debugLog(
-            'Request start: method=' . $method
-            . ', task=' . $task
-            . ', productId=' . $productId
-            . ', cid=' . json_encode($cid)
-            . ', post_keys=' . implode(',', array_keys($post))
-            . ', start_total=' . (string) $this->debugStartTotalCount
-            . ', start_product=' . (string) $this->debugStartProductCount
-        );
+        if ($this->isDebugEnabled()) {
+            $method = $input->getMethod();
+            $this->debugLog(
+                'Request start: method=' . $method
+                . ', task=' . $task
+                . ', productId=' . $productId
+                . ', cid=' . json_encode($cid)
+                . ', post_keys=' . implode(',', array_keys($post))
+                . ', start_total=' . (string) $this->debugStartTotalCount
+                . ', start_product=' . (string) $this->debugStartProductCount
+            );
+        }
 
         if (in_array($task, ['save', 'apply'], true) || str_contains($task, 'save')) {
-            $this->debugLog(
-                'Save-like request payload snapshot: id=' . ($post['id'] ?? '')
-                . ', product_id=' . ($post['product_id'] ?? '')
-                . ', action=' . ($post['action'] ?? '')
-                . ', price=' . ($post['price'] ?? '')
-                . ', grit_cp_id=' . ($post['grit_cp_id'] ?? '')
-                . ', grit_cp_product_id=' . ($post['grit_cp_product_id'] ?? '')
-            );
+            if ($this->isDebugEnabled()) {
+                $this->debugLog(
+                    'Save-like request payload snapshot: id=' . ($post['id'] ?? '')
+                    . ', product_id=' . ($post['product_id'] ?? '')
+                    . ', action=' . ($post['action'] ?? '')
+                    . ', price=' . ($post['price'] ?? '')
+                    . ', grit_cp_id=' . ($post['grit_cp_id'] ?? '')
+                    . ', grit_cp_product_id=' . ($post['grit_cp_product_id'] ?? '')
+                );
+            }
 
             if ($productId > 0) {
                 try {
