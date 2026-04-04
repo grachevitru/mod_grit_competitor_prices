@@ -52,6 +52,24 @@ if (!$isJshopping || !$isProductPage || !$product_id) {
 
 $db = Factory::getDbo();
 
+if ($tableName === '#__competitor_prices') {
+    $createSql = "CREATE TABLE IF NOT EXISTS `#__competitor_prices` (
+        `id` int unsigned NOT NULL AUTO_INCREMENT,
+        `product_id` int unsigned NOT NULL,
+        `competitor_name` varchar(255) NOT NULL,
+        `competitor_url` varchar(1024) DEFAULT NULL,
+        `url` varchar(1024) DEFAULT NULL,
+        `selector` varchar(1024) DEFAULT NULL,
+        `price` decimal(12,2) NOT NULL DEFAULT 0.00,
+        `last_update` datetime DEFAULT NULL,
+        `published` tinyint(1) NOT NULL DEFAULT 1,
+        PRIMARY KEY (`id`),
+        KEY `idx_product_id` (`product_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci";
+    $db->setQuery($createSql);
+    $db->execute();
+}
+
 $queryProd = $db->getQuery(true)
     ->select($db->quoteName('product_price'))
     ->from($db->quoteName('#__jshopping_products'))

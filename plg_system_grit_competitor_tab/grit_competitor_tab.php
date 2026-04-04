@@ -55,6 +55,7 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
     private function ensurePublishedColumnExists(): void
     {
         $db = Factory::getDbo();
+        $this->ensureCompetitorTableExists();
         $columnsInfo = $db->getTableColumns('#__competitor_prices', false);
         if (isset($columnsInfo['published'])) {
             return;
@@ -62,6 +63,26 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
 
         $query = 'ALTER TABLE ' . $db->quoteName('#__competitor_prices') . ' ADD COLUMN ' . $db->quoteName('published') . ' TINYINT(1) NOT NULL DEFAULT 1';
         $db->setQuery($query);
+        $db->execute();
+    }
+
+    private function ensureCompetitorTableExists(): void
+    {
+        $db = Factory::getDbo();
+        $createSql = "CREATE TABLE IF NOT EXISTS `#__competitor_prices` (
+            `id` int unsigned NOT NULL AUTO_INCREMENT,
+            `product_id` int unsigned NOT NULL,
+            `competitor_name` varchar(255) NOT NULL,
+            `competitor_url` varchar(1024) DEFAULT NULL,
+            `url` varchar(1024) DEFAULT NULL,
+            `selector` varchar(1024) DEFAULT NULL,
+            `price` decimal(12,2) NOT NULL DEFAULT 0.00,
+            `last_update` datetime DEFAULT NULL,
+            `published` tinyint(1) NOT NULL DEFAULT 1,
+            PRIMARY KEY (`id`),
+            KEY `idx_product_id` (`product_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci";
+        $db->setQuery($createSql);
         $db->execute();
     }
 
@@ -76,6 +97,8 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         if ($input->getCmd('option') !== 'com_jshopping') {
             return;
         }
+
+        $this->ensureCompetitorTableExists();
 
         if ($this->isDebugEnabled()) {
             $this->initDebugLogger();
@@ -356,6 +379,7 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $app = Factory::getApplication();
         $input = $app->input;
         $db = Factory::getDbo();
+        $this->ensureCompetitorTableExists();
 
         $action = $input->getCmd('action', 'save');
         $productId = $input->getInt('product_id');
