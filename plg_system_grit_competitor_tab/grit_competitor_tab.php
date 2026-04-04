@@ -8,6 +8,13 @@ use Joomla\CMS\Plugin\CMSPlugin;
 
 final class PlgSystemGrit_competitor_tab extends CMSPlugin
 {
+    /** @var int|null */
+    private $debugStartTotalCount = null;
+    /** @var int|null */
+    private $debugStartProductCount = null;
+    /** @var int|null */
+    private $debugTrackedProductId = null;
+
     private function isDebugEnabled(): bool
     {
         return (bool) $this->params->get('debug_logging', 0);
@@ -38,6 +45,77 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
 
         $this->initDebugLogger();
         Log::add($message, $level, 'plg_system_grit_competitor_tab');
+    }
+
+    public function onAfterInitialise(): void
+    {
+        if (!$this->isDebugEnabled()) {
+            return;
+        }
+
+        $app = Factory::getApplication();
+        if (!$app->isClient('administrator')) {
+            return;
+        }
+
+        $input = $app->input;
+        if ($input->getCmd('option') !== 'com_jshopping') {
+            return;
+        }
+
+        $this->initDebugLogger();
+
+        $productId = $input->getInt('product_id', $input->getInt('id'));
+        $cid = $input->get('cid', [], 'array');
+        if ($productId <= 0 && !empty($cid)) {
+            $productId = (int) reset($cid);
+        }
+
+        $this->debugTrackedProductId = $productId > 0 ? $productId : null;
+
+        $db = Factory::getDbo();
+        try {
+            $qTotal = $db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($db->quoteName('#__competitor_prices'));
+            $db->setQuery($qTotal);
+            $this->debugStartTotalCount = (int) $db->loadResult();
+
+            if ($this->debugTrackedProductId) {
+                $qProduct = $db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__competitor_prices'))
+                    ->where($db->quoteName('product_id') . ' = ' . (int) $this->debugTrackedProductId);
+                $db->setQuery($qProduct);
+                $this->debugStartProductCount = (int) $db->loadResult();
+            }
+        } catch (Throwable $e) {
+            $this->debugLog('Initial debug count query failed: ' . $e->getMessage(), Log::ERROR);
+        }
+
+        $post = $input->post->getArray();
+        $task = $input->getCmd('task');
+        $method = $input->getMethod();
+        $this->debugLog(
+            'Request start: method=' . $method
+            . ', task=' . $task
+            . ', productId=' . $productId
+            . ', cid=' . json_encode($cid)
+            . ', post_keys=' . implode(',', array_keys($post))
+            . ', start_total=' . (string) $this->debugStartTotalCount
+            . ', start_product=' . (string) $this->debugStartProductCount
+        );
+
+        if (in_array($task, ['save', 'apply'], true) || str_contains($task, 'save')) {
+            $this->debugLog(
+                'Save-like request payload snapshot: id=' . ($post['id'] ?? '')
+                . ', product_id=' . ($post['product_id'] ?? '')
+                . ', action=' . ($post['action'] ?? '')
+                . ', price=' . ($post['price'] ?? '')
+                . ', grit_cp_id=' . ($post['grit_cp_id'] ?? '')
+                . ', grit_cp_product_id=' . ($post['grit_cp_product_id'] ?? '')
+            );
+        }
     }
 
     public function onAfterRender(): void
@@ -134,6 +212,37 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $app->setBody($body);
 
         $this->debugLog('Injected competitor editable tab. tabsInjected=' . (int) $tabsInjected . ', productId=' . $productId);
+
+        if ($this->debugStartTotalCount !== null) {
+            try {
+                $db = Factory::getDbo();
+                $qTotal = $db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__competitor_prices'));
+                $db->setQuery($qTotal);
+                $endTotal = (int) $db->loadResult();
+
+                $endProduct = null;
+                if ($this->debugTrackedProductId) {
+                    $qProduct = $db->getQuery(true)
+                        ->select('COUNT(*)')
+                        ->from($db->quoteName('#__competitor_prices'))
+                        ->where($db->quoteName('product_id') . ' = ' . (int) $this->debugTrackedProductId);
+                    $db->setQuery($qProduct);
+                    $endProduct = (int) $db->loadResult();
+                }
+
+                $this->debugLog(
+                    'Request end: productId=' . (int) $this->debugTrackedProductId
+                    . ', end_total=' . $endTotal
+                    . ', end_product=' . (string) $endProduct
+                    . ', delta_total=' . ($endTotal - (int) $this->debugStartTotalCount)
+                    . ', delta_product=' . (($endProduct === null || $this->debugStartProductCount === null) ? 'n/a' : (string) ($endProduct - $this->debugStartProductCount))
+                );
+            } catch (Throwable $e) {
+                $this->debugLog('Final debug count query failed: ' . $e->getMessage(), Log::ERROR);
+            }
+        }
     }
 
     public function onAjaxGrit_competitor_tab()
