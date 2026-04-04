@@ -279,7 +279,10 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             . '<div class="control-group" style="margin-top:10px;"><button id="grit-competitor-save" class="btn btn-success" type="button">Сохранить</button></div>'
             . '<div id="grit-competitor-result" style="margin-top:10px;"></div>'
             . '</div>'
-            . '<div id="grit-competitor-list" style="margin-top:15px;"></div>';
+            . '<div id="grit-competitor-list" style="margin-top:15px;"></div>'
+            . '<div class="alert alert-secondary" style="margin-top:12px;"><strong>Подсказка по селектору цены:</strong><br>'
+            . 'Используйте CSS-селектор (как в <code>querySelector</code>). Поддерживаются варианты: <code>#id</code>, <code>.class</code>, <code>tag.class</code>, <code>tag#id</code>, <code>[attr]</code>, <code>[attr="value"]</code>, вложенные <code>.parent .child</code>, прямой потомок <code>.parent &gt; .child</code>, псевдоклассы <code>:first-child</code>, <code>:last-child</code>, <code>:nth-child(n)</code> и список через запятую <code>.price, .product-price</code>.<br>'
+            . 'Примеры: <code>.price</code>, <code>.product-card .price-value</code>, <code>[itemprop="price"]</code>, <code>.offer &gt; .amount</code>.</div>';
 
         $script = '<script>(function(){'
             . 'var pid=' . (int) $productId . ';'

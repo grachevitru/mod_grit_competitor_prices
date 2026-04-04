@@ -2,6 +2,7 @@
 <extension type="plugin" group="system" method="upgrade">
     <name>PLG_SYSTEM_GRIT_COMPETITOR_TAB</name>
     <author>Grachev-IT</author>
+    <creationDate>03.04.2026</creationDate>
     <version>1.0.0</version>
     <description>PLG_SYSTEM_GRIT_COMPETITOR_TAB_DESC</description>
     <files>
