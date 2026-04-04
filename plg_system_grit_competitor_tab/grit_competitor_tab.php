@@ -52,6 +52,19 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         return 'grit_cp_backup_' . $productId;
     }
 
+    private function ensurePublishedColumnExists(): void
+    {
+        $db = Factory::getDbo();
+        $columnsInfo = $db->getTableColumns('#__competitor_prices', false);
+        if (isset($columnsInfo['published'])) {
+            return;
+        }
+
+        $query = 'ALTER TABLE ' . $db->quoteName('#__competitor_prices') . ' ADD COLUMN ' . $db->quoteName('published') . ' TINYINT(1) NOT NULL DEFAULT 1';
+        $db->setQuery($query);
+        $db->execute();
+    }
+
     public function onAfterInitialise(): void
     {
         $app = Factory::getApplication();
@@ -281,16 +294,16 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             . '</div>'
             . '<div id="grit-competitor-list" style="margin-top:15px;"></div>'
             . '<div class="alert alert-secondary" style="margin-top:12px;"><strong>Подсказка по селектору цены:</strong><br>'
-            . 'Используйте CSS-селектор (как в <code>querySelector</code>). Поддерживаются варианты: <code>#id</code>, <code>.class</code>, <code>tag.class</code>, <code>tag#id</code>, <code>[attr]</code>, <code>[attr="value"]</code>, вложенные <code>.parent .child</code>, прямой потомок <code>.parent &gt; .child</code>, псевдоклассы <code>:first-child</code>, <code>:last-child</code>, <code>:nth-child(n)</code> и список через запятую <code>.price, .product-price</code>.<br>'
-            . 'Примеры: <code>.price</code>, <code>.product-card .price-value</code>, <code>[itemprop="price"]</code>, <code>.offer &gt; .amount</code>.</div>';
+            . 'Поддерживаются CSS и XPath. CSS (как в <code>querySelector</code>): <code>#id</code>, <code>.class</code>, <code>tag.class</code>, <code>tag#id</code>, <code>[attr]</code>, <code>[attr="value"]</code>, вложенные <code>.parent .child</code>, прямой потомок <code>.parent &gt; .child</code>, псевдоклассы <code>:first-child</code>, <code>:last-child</code>, <code>:nth-child(n)</code>, список <code>.price, .product-price</code>.<br>'
+            . 'XPath: путь с <code>//</code> в начале (поиск по всему DOM), например <code>//*[@itemprop="lowPrice"]</code>, <code>//div[contains(@class,"price")]</code>, <code>//span[@class="amount"]</code>.</div>';
 
         $script = '<script>(function(){'
             . 'var pid=' . (int) $productId . ';'
             . 'var ajaxUrl=' . json_encode($ajaxUrl) . ';'
             . 'var paneHtml=' . json_encode($paneHtml) . ';'
             . 'function esc(v){return String(v||"").replace(/[&<>\"\']/g,function(s){return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\'":"&#039;"})[s];});}function val(it,n,u,i){if(!it){return "";}if(it[n]!==undefined){return it[n];}if(it[u]!==undefined){return it[u];}if(it[i]!==undefined){return it[i];}return "";}'
-            . 'function bindActions(items,f){var listEl=document.getElementById("grit-competitor-list");if(!listEl||!f){return;} Array.prototype.forEach.call(listEl.querySelectorAll(".grit-edit"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");var row=(items||[]).find(function(x){return String(val(x,"id","ID",0))===String(id);});if(!row){return;}f.querySelector("input[name=grit_cp_id]").value=val(row,"id","ID",0)||"";f.querySelector("input[name=grit_cp_competitor_name]").value=val(row,"competitor_name","COMPETITOR_NAME",1)||"";f.querySelector("input[name=grit_cp_url]").value=val(row,"url","URL",2)||"";f.querySelector("input[name=grit_cp_selector]").value=val(row,"selector","SELECTOR",3)||"";f.querySelector("input[name=grit_cp_price]").value=val(row,"price","PRICE",4)||"";window.scrollTo({top:listEl.offsetTop-120,behavior:"smooth"});});}); Array.prototype.forEach.call(listEl.querySelectorAll(".grit-del"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");if(!confirm("Удалить запись?")){return;}var fd=new FormData();fd.append("action","delete");fd.append("id",id);fd.append("product_id",pid);fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(){loadList();}).catch(function(){});});});}'
-            . 'function render(items){var listEl=document.getElementById("grit-competitor-list");var f=document.getElementById("grit-competitor-form");if(!listEl){return;} if(!items||!items.length){listEl.innerHTML="<div class=\\"alert alert-light\\">Записей пока нет</div>";return;} var h="<table class=\\"table table-sm\\"><thead><tr><th>ID</th><th>Конкурент</th><th>URL</th><th>Селектор</th><th>Цена</th><th>Обновлено</th><th>Действия</th></tr></thead><tbody>";items.forEach(function(it){h+="<tr><td>"+esc(val(it,"id","ID",0))+"</td><td>"+esc(val(it,"competitor_name","COMPETITOR_NAME",1))+"</td><td>"+esc(val(it,"url","URL",2))+"</td><td>"+esc(val(it,"selector","SELECTOR",3))+"</td><td>"+esc(val(it,"price","PRICE",4))+"</td><td>"+esc(val(it,"last_update","LAST_UPDATE",5))+"</td><td><button type=\\"button\\" class=\\"btn btn-xs btn-primary grit-edit\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\">Ред.</button> <button type=\\"button\\" class=\\"btn btn-xs btn-danger grit-del\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\">Удал.</button></td></tr>";});h+="</tbody></table>";listEl.innerHTML=h;bindActions(items,f);}'
+            . 'function bindActions(items,f){var listEl=document.getElementById("grit-competitor-list");if(!listEl||!f){return;} Array.prototype.forEach.call(listEl.querySelectorAll(".grit-edit"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");var row=(items||[]).find(function(x){return String(val(x,"id","ID",0))===String(id);});if(!row){return;}f.querySelector("input[name=grit_cp_id]").value=val(row,"id","ID",0)||"";f.querySelector("input[name=grit_cp_competitor_name]").value=val(row,"competitor_name","COMPETITOR_NAME",1)||"";f.querySelector("input[name=grit_cp_url]").value=val(row,"url","URL",2)||"";f.querySelector("input[name=grit_cp_selector]").value=val(row,"selector","SELECTOR",3)||"";f.querySelector("input[name=grit_cp_price]").value=val(row,"price","PRICE",4)||"";window.scrollTo({top:listEl.offsetTop-120,behavior:"smooth"});});}); Array.prototype.forEach.call(listEl.querySelectorAll(".grit-del"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");if(!confirm("Удалить запись?")){return;}var fd=new FormData();fd.append("action","delete");fd.append("id",id);fd.append("product_id",pid);fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(){loadList();}).catch(function(){});});}); Array.prototype.forEach.call(listEl.querySelectorAll(".grit-pub"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");var next=this.getAttribute("data-next");var fd=new FormData();fd.append("action","toggle");fd.append("id",id);fd.append("product_id",pid);fd.append("published",next);fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(){loadList();}).catch(function(){});});});}'
+            . 'function render(items){var listEl=document.getElementById("grit-competitor-list");var f=document.getElementById("grit-competitor-form");if(!listEl){return;} if(!items||!items.length){listEl.innerHTML="<div class=\\"alert alert-light\\">Записей пока нет</div>";return;} var h="<table class=\\"table table-sm\\"><thead><tr><th>ID</th><th>Конкурент</th><th>URL</th><th>Селектор</th><th>Цена</th><th>Обновлено</th><th>Статус</th><th>Действия</th></tr></thead><tbody>";items.forEach(function(it){var pub=String(val(it,"published","PUBLISHED",6))!=="0";var pubTxt=pub?"Опубликован":"Скрыт";var next=pub?"0":"1";var pubBtn=pub?"Скрыть":"Публикация";h+="<tr><td>"+esc(val(it,"id","ID",0))+"</td><td>"+esc(val(it,"competitor_name","COMPETITOR_NAME",1))+"</td><td>"+esc(val(it,"url","URL",2))+"</td><td>"+esc(val(it,"selector","SELECTOR",3))+"</td><td>"+esc(val(it,"price","PRICE",4))+"</td><td>"+esc(val(it,"last_update","LAST_UPDATE",5))+"</td><td>"+esc(pubTxt)+"</td><td><button type=\\"button\\" class=\\"btn btn-xs btn-primary grit-edit\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\">Ред.</button> <button type=\\"button\\" class=\\"btn btn-xs btn-warning grit-pub\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\" data-next=\\""+esc(next)+"\\">"+esc(pubBtn)+"</button> <button type=\\"button\\" class=\\"btn btn-xs btn-danger grit-del\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\">Удал.</button></td></tr>";});h+="</tbody></table>";listEl.innerHTML=h;bindActions(items,f);}'
             . 'function loadList(){fetch(ajaxUrl+"&action=list&product_id="+pid,{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){var items=[];if(d&&d.success){if(d.data&&d.data.items){items=d.data.items;}else if(Array.isArray(d.data)){if(d.data.length&&d.data[0]&&d.data[0].items&&Array.isArray(d.data[0].items)){items=d.data[0].items;}else{items=d.data;}}}render(items);}).catch(function(){render([]);});}'
             . 'function init(){var tc=document.querySelector(".tab-content");if(!tc){return;} if(!document.getElementById("grit-competitor-tab-pane")){var p=document.createElement("div");p.className="tab-pane";p.id="grit-competitor-tab-pane";p.innerHTML=paneHtml;tc.appendChild(p);} var f=document.getElementById("grit-competitor-form");if(f&&!f.dataset.binded){f.dataset.binded="1";var mainForm=f.closest("form");if(mainForm&&!mainForm.dataset.gritCpBound){mainForm.dataset.gritCpBound="1";mainForm.addEventListener("submit",function(){Array.prototype.forEach.call(f.querySelectorAll("input[name^=grit_cp_]"),function(inp){if(!inp.dataset.origName){inp.dataset.origName=inp.getAttribute("name")||"";}inp.removeAttribute("name");});});}var saveBtn=document.getElementById("grit-competitor-save");if(saveBtn){saveBtn.addEventListener("click",function(){var fd=new FormData();fd.append("action","save");fd.append("id",f.querySelector("input[data-orig-name=grit_cp_id],input[name=grit_cp_id]").value||"");fd.append("product_id",f.querySelector("input[data-orig-name=grit_cp_product_id],input[name=grit_cp_product_id]").value||pid);fd.append("competitor_name",f.querySelector("input[data-orig-name=grit_cp_competitor_name],input[name=grit_cp_competitor_name]").value||"");fd.append("url",f.querySelector("input[data-orig-name=grit_cp_url],input[name=grit_cp_url]").value||"");fd.append("selector",f.querySelector("input[data-orig-name=grit_cp_selector],input[name=grit_cp_selector]").value||"");fd.append("price",f.querySelector("input[data-orig-name=grit_cp_price],input[name=grit_cp_price]").value||"");fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){var r=document.getElementById("grit-competitor-result");if(d&&d.success){r.innerHTML="<span style=\\"color:green\\">Сохранено</span>";Array.prototype.forEach.call(f.querySelectorAll("input[data-orig-name=grit_cp_competitor_name],input[name=grit_cp_competitor_name],input[data-orig-name=grit_cp_url],input[name=grit_cp_url],input[data-orig-name=grit_cp_selector],input[name=grit_cp_selector],input[data-orig-name=grit_cp_price],input[name=grit_cp_price]"),function(inp){inp.value="";});f.querySelector("input[data-orig-name=grit_cp_product_id],input[name=grit_cp_product_id]").value=pid;f.querySelector("input[data-orig-name=grit_cp_id],input[name=grit_cp_id]").value="";loadList();}else{r.innerHTML="<span style=\\"color:#a00\\">Ошибка сохранения</span>";}}).catch(function(){var r=document.getElementById("grit-competitor-result");r.innerHTML="<span style=\\"color:#a00\\">Ошибка запроса</span>";});});}} loadList();}'
             . 'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}'
@@ -362,6 +375,7 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             $select[] = isset($columnsInfo['selector']) ? 'selector' : "'' AS selector";
             $select[] = isset($columnsInfo['price']) ? 'price' : "'' AS price";
             $select[] = isset($columnsInfo['last_update']) ? 'last_update' : "'' AS last_update";
+            $select[] = isset($columnsInfo['published']) ? 'published' : '1 AS published';
 
             $query = $db->getQuery(true)
                 ->select($select)
@@ -405,6 +419,34 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             }
 
             return ['deleted' => true];
+        }
+
+        if ($action === 'toggle') {
+            if ($id <= 0) {
+                $this->debugLog('AJAX toggle aborted: invalid id=' . $id, Log::WARNING);
+                throw new RuntimeException('Invalid id');
+            }
+
+            $published = $input->getInt('published', 1) ? 1 : 0;
+            $this->ensurePublishedColumnExists();
+
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__competitor_prices'))
+                ->set($db->quoteName('published') . ' = ' . (int) $published)
+                ->where($db->quoteName('id') . ' = ' . (int) $id);
+
+            $this->debugLog('AJAX toggle SQL=' . (string) $query);
+
+            try {
+                $db->setQuery($query);
+                $db->execute();
+                $this->debugLog('AJAX toggle done: id=' . $id . ', published=' . $published);
+            } catch (Throwable $e) {
+                $this->debugLog('AJAX toggle DB error: ' . $e->getMessage(), Log::ERROR);
+                throw $e;
+            }
+
+            return ['toggled' => true, 'published' => $published];
         }
 
         $competitorName = trim($input->getString('competitor_name'));
