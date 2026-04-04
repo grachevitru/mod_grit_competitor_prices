@@ -8,14 +8,42 @@ use Joomla\CMS\Plugin\CMSPlugin;
 
 final class PlgSystemGrit_competitor_tab extends CMSPlugin
 {
+    private function isDebugEnabled(): bool
+    {
+        return (bool) $this->params->get('debug_logging', 0);
+    }
+
+    private function initDebugLogger(): void
+    {
+        static $loggerInitialized = false;
+
+        if ($loggerInitialized || !$this->isDebugEnabled()) {
+            return;
+        }
+
+        Log::addLogger(
+            ['text_file' => 'plg_system_grit_competitor_tab.php', 'text_file_path' => 'logs'],
+            Log::ALL,
+            ['plg_system_grit_competitor_tab']
+        );
+
+        $loggerInitialized = true;
+    }
+
+    private function debugLog(string $message, int $level = Log::INFO): void
+    {
+        if (!$this->isDebugEnabled()) {
+            return;
+        }
+
+        $this->initDebugLogger();
+        Log::add($message, $level, 'plg_system_grit_competitor_tab');
+    }
+
     public function onAfterRender(): void
     {
         $app = Factory::getApplication();
-        $debugLogging = (bool) $this->params->get('debug_logging', 0);
-
-        if ($debugLogging) {
-            Log::addLogger(['text_file' => 'plg_system_grit_competitor_tab.php', 'text_file_path' => 'logs'], Log::ALL, ['plg_system_grit_competitor_tab']);
-        }
+        $this->initDebugLogger();
 
         if (!$app->isClient('administrator')) {
             return;
@@ -42,9 +70,7 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $isEditTask = in_array($task, ['edit', 'apply', 'save'], true) || str_contains($task, 'product');
         $isProductEdit = (($isProductsController || $isProductView) && $isEditTask && $productId > 0);
 
-        if ($debugLogging) {
-            Log::add('Detected com_jshopping page. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId . ', cid=' . json_encode($cid) . ', isProductEdit=' . (int) $isProductEdit, Log::INFO, 'plg_system_grit_competitor_tab');
-        }
+        $this->debugLog('Detected com_jshopping page. controller=' . $controller . ', view=' . $view . ', task=' . $task . ', productId=' . $productId . ', cid=' . json_encode($cid) . ', isProductEdit=' . (int) $isProductEdit);
 
         if (!$isProductEdit) {
             return;
@@ -107,22 +133,24 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
 
         $app->setBody($body);
 
-        if ($debugLogging) {
-            Log::add('Injected competitor editable tab. tabsInjected=' . (int) $tabsInjected . ', productId=' . $productId, Log::INFO, 'plg_system_grit_competitor_tab');
-        }
+        $this->debugLog('Injected competitor editable tab. tabsInjected=' . (int) $tabsInjected . ', productId=' . $productId);
     }
 
     public function onAjaxGrit_competitor_tab()
     {
-        $input = Factory::getApplication()->input;
+        $app = Factory::getApplication();
+        $input = $app->input;
         $db = Factory::getDbo();
 
         $action = $input->getCmd('action', 'save');
         $productId = $input->getInt('product_id');
         $id = $input->getInt('id');
+        $this->initDebugLogger();
+        $this->debugLog('AJAX start: method=' . $input->getMethod() . ', action=' . $action . ', product_id=' . $productId . ', id=' . $id . ', raw=' . json_encode($input->post->getArray()));
 
         if ($action === 'list') {
             if ($productId <= 0) {
+                $this->debugLog('AJAX list aborted: invalid product_id=' . $productId, Log::WARNING);
                 return ['items' => []];
             }
 
@@ -139,12 +167,23 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
                 ->where($db->quoteName('product_id') . ' = ' . (int) $productId)
                 ->order($db->quoteName('id') . ' DESC');
 
-            $db->setQuery($query);
-            return ['items' => $db->loadAssocList() ?: []];
+            $this->debugLog('AJAX list columns=' . implode(', ', array_keys($columnsInfo)) . '; select=' . implode(', ', $select));
+            $this->debugLog('AJAX list SQL=' . (string) $query);
+
+            try {
+                $db->setQuery($query);
+                $items = $db->loadAssocList() ?: [];
+                $this->debugLog('AJAX list loaded rows=' . count($items) . ($items ? '; firstRow=' . json_encode($items[0]) : ''));
+                return ['items' => $items];
+            } catch (Throwable $e) {
+                $this->debugLog('AJAX list DB error: ' . $e->getMessage(), Log::ERROR);
+                throw $e;
+            }
         }
 
         if ($action === 'delete') {
             if ($id <= 0) {
+                $this->debugLog('AJAX delete aborted: invalid id=' . $id, Log::WARNING);
                 throw new RuntimeException('Invalid id');
             }
 
@@ -152,8 +191,16 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
                 ->delete($db->quoteName('#__competitor_prices'))
                 ->where($db->quoteName('id') . ' = ' . (int) $id);
 
-            $db->setQuery($query);
-            $db->execute();
+            $this->debugLog('AJAX delete SQL=' . (string) $query);
+
+            try {
+                $db->setQuery($query);
+                $db->execute();
+                $this->debugLog('AJAX delete done: id=' . $id);
+            } catch (Throwable $e) {
+                $this->debugLog('AJAX delete DB error: ' . $e->getMessage(), Log::ERROR);
+                throw $e;
+            }
 
             return ['deleted' => true];
         }
@@ -162,8 +209,10 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $url = trim($input->getString('url'));
         $selector = trim($input->getString('selector'));
         $price = trim($input->getString('price'));
+        $this->debugLog('AJAX save payload: competitor_name=' . $competitorName . ', url=' . $url . ', selector=' . $selector . ', price=' . $price . ', product_id=' . $productId . ', id=' . $id);
 
         if ($productId <= 0 || $competitorName === '') {
+            $this->debugLog('AJAX save aborted: invalid data product_id=' . $productId . ', competitor_name_len=' . strlen($competitorName), Log::WARNING);
             throw new RuntimeException('Invalid data');
         }
 
@@ -214,9 +263,19 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
                 ->values(implode(',', array_map([$db, 'quote'], $values)));
         }
 
-        $db->setQuery($query);
-        $db->execute();
+        $this->debugLog('AJAX save columns=' . implode(', ', $columns));
+        $this->debugLog('AJAX save SQL=' . (string) $query);
 
-        return ['saved' => true, 'id' => $id ?: (int) $db->insertid()];
+        try {
+            $db->setQuery($query);
+            $db->execute();
+        } catch (Throwable $e) {
+            $this->debugLog('AJAX save DB error: ' . $e->getMessage(), Log::ERROR);
+            throw $e;
+        }
+
+        $savedId = $id ?: (int) $db->insertid();
+        $this->debugLog('AJAX save done: saved_id=' . $savedId);
+        return ['saved' => true, 'id' => $savedId];
     }
 }
