@@ -17,7 +17,9 @@
             <filename>com_grit_competitor_prices.php</filename>
             <filename>access.xml</filename>
             <filename>config.xml</filename>
+            <filename>controller.php</filename>
             <filename>services/provider.php</filename>
+            <folder>controllers</folder>
             <folder>forms</folder>
             <folder>language</folder>
             <folder>src</folder>
