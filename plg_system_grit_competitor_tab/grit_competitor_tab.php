@@ -75,7 +75,22 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             . '}\n'
             . '})();</script>';
 
-        $app->setBody(str_replace('</body>', $html . '</body>', $body));
+        $serverFallback = '<div id="grit-competitor-server-fallback" class="alert alert-info mt-3" style="margin:15px;">'
+            . '<strong>Цены конкурентов</strong> (товар ID: ' . (int) $productId . ')<br>'
+            . '<a class="btn btn-primary btn-sm mt-2" target="_blank" href="' . $componentLink . '">Открыть список цен</a> '
+            . '<a class="btn btn-success btn-sm mt-2" target="_blank" href="' . $addLink . '">Добавить цену конкурента</a>'
+            . '</div>';
+
+        $injectedHtml = $serverFallback . $html;
+
+        if (stripos($body, '</body>') !== false) {
+            $body = preg_replace('~</body>~i', $injectedHtml . '</body>', $body, 1);
+        } else {
+            $body .= $injectedHtml;
+        }
+
+        $app->setBody($body);
+
         if ($debugLogging) {
             Log::add('Injected competitor prices tab/fallback for productId=' . $productId, Log::INFO, 'plg_system_grit_competitor_tab');
         }
