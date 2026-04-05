@@ -86,6 +86,153 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
         $db->execute();
     }
 
+    private function fetchUrlContent(string $url): string
+    {
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT => 20,
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; GritCompetitorBot/1.0)',
+            ]);
+            $body = curl_exec($ch);
+            $err = curl_error($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($body === false || $code >= 400) {
+                throw new RuntimeException('HTTP error while loading URL: ' . ($err ?: ('status ' . $code)));
+            }
+
+            return (string) $body;
+        }
+
+        $ctx = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'timeout' => 20,
+                'header' => "User-Agent: Mozilla/5.0 (compatible; GritCompetitorBot/1.0)\r\n",
+            ],
+        ]);
+        $body = @file_get_contents($url, false, $ctx);
+        if ($body === false) {
+            throw new RuntimeException('Unable to load URL content');
+        }
+
+        return (string) $body;
+    }
+
+    private function cssToXpath(string $css): string
+    {
+        $css = trim($css);
+        if ($css === '') {
+            return '';
+        }
+
+        if (strpos($css, ',') !== false) {
+            $css = trim(explode(',', $css)[0]);
+        }
+
+        $css = preg_replace('/\s*>\s*/', ' > ', $css);
+        $parts = preg_split('/\s+/', trim((string) $css)) ?: [];
+        $xpath = '';
+        $axis = '//';
+        foreach ($parts as $part) {
+            if ($part === '>') {
+                $axis = '/';
+                continue;
+            }
+
+            $token = $part;
+            $node = '*';
+            if (preg_match('/^[a-zA-Z][a-zA-Z0-9_-]*/', $token, $m)) {
+                $node = $m[0];
+                $token = substr($token, strlen($m[0]));
+            }
+
+            $conds = [];
+            if (preg_match('/#([a-zA-Z0-9_-]+)/', $part, $m)) {
+                $conds[] = '@id=' . "'" . $m[1] . "'";
+            }
+            if (preg_match_all('/\.([a-zA-Z0-9_-]+)/', $part, $mm)) {
+                foreach ($mm[1] as $class) {
+                    $conds[] = "contains(concat(' ', normalize-space(@class), ' '), ' " . $class . " ')";
+                }
+            }
+            if (preg_match_all('/\[([a-zA-Z0-9_-]+)(?:=["\']?([^"\']+)["\']?)?\]/', $part, $am, PREG_SET_ORDER)) {
+                foreach ($am as $a) {
+                    if (isset($a[2]) && $a[2] !== '') {
+                        $conds[] = '@' . $a[1] . '=' . "'" . $a[2] . "'";
+                    } else {
+                        $conds[] = '@' . $a[1];
+                    }
+                }
+            }
+
+            if (strpos($part, ':first-child') !== false) {
+                $conds[] = 'position()=1';
+            } elseif (strpos($part, ':last-child') !== false) {
+                $conds[] = 'position()=last()';
+            } elseif (preg_match('/:nth-child\((\d+)\)/', $part, $nm)) {
+                $conds[] = 'position()=' . (int) $nm[1];
+            }
+
+            $xpath .= $axis . $node . ($conds ? '[' . implode(' and ', $conds) . ']' : '');
+            $axis = '//';
+        }
+
+        return $xpath;
+    }
+
+    private function extractPriceFromHtml(string $html, string $selector): float
+    {
+        $selector = trim($selector);
+        if ($selector === '') {
+            throw new RuntimeException('Empty selector');
+        }
+
+        libxml_use_internal_errors(true);
+        $dom = new DOMDocument();
+        @$dom->loadHTML($html);
+        $xp = new DOMXPath($dom);
+
+        $xpath = (strpos($selector, '//') === 0 || strpos($selector, '/') === 0) ? $selector : $this->cssToXpath($selector);
+        if ($xpath === '') {
+            throw new RuntimeException('Invalid selector');
+        }
+
+        $nodes = @$xp->query($xpath);
+        if (!$nodes || $nodes->length === 0) {
+            throw new RuntimeException('Price node not found by selector');
+        }
+
+        $text = trim((string) $nodes->item(0)->textContent);
+        if ($text === '') {
+            throw new RuntimeException('Price text is empty');
+        }
+
+        $clean = str_replace(["\xC2\xA0", ' '], '', $text);
+        if (substr_count($clean, ',') > 0 && substr_count($clean, '.') > 0) {
+            $lastComma = strrpos($clean, ',');
+            $lastDot = strrpos($clean, '.');
+            if ($lastComma > $lastDot) {
+                $clean = str_replace('.', '', $clean);
+                $clean = str_replace(',', '.', $clean);
+            } else {
+                $clean = str_replace(',', '', $clean);
+            }
+        } else {
+            $clean = str_replace(',', '.', $clean);
+        }
+
+        if (preg_match('/-?\d+(?:\.\d+)?/', $clean, $m)) {
+            return (float) $m[0];
+        }
+
+        throw new RuntimeException('Unable to parse numeric price from text: ' . $text);
+    }
+
     public function onAfterInitialise(): void
     {
         $app = Factory::getApplication();
@@ -325,8 +472,8 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             . 'var ajaxUrl=' . json_encode($ajaxUrl) . ';'
             . 'var paneHtml=' . json_encode($paneHtml) . ';'
             . 'function esc(v){return String(v||"").replace(/[&<>\"\']/g,function(s){return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\'":"&#039;"})[s];});}function val(it,n,u,i){if(!it){return "";}if(it[n]!==undefined){return it[n];}if(it[u]!==undefined){return it[u];}if(it[i]!==undefined){return it[i];}return "";}'
-            . 'function bindActions(items,f){var listEl=document.getElementById("grit-competitor-list");if(!listEl||!f){return;} Array.prototype.forEach.call(listEl.querySelectorAll(".grit-edit"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");var row=(items||[]).find(function(x){return String(val(x,"id","ID",0))===String(id);});if(!row){return;}f.querySelector("input[name=grit_cp_id]").value=val(row,"id","ID",0)||"";f.querySelector("input[name=grit_cp_competitor_name]").value=val(row,"competitor_name","COMPETITOR_NAME",1)||"";f.querySelector("input[name=grit_cp_url]").value=val(row,"url","URL",2)||"";f.querySelector("input[name=grit_cp_selector]").value=val(row,"selector","SELECTOR",3)||"";f.querySelector("input[name=grit_cp_price]").value=val(row,"price","PRICE",4)||"";window.scrollTo({top:listEl.offsetTop-120,behavior:"smooth"});});}); Array.prototype.forEach.call(listEl.querySelectorAll(".grit-del"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");if(!confirm("Удалить запись?")){return;}var fd=new FormData();fd.append("action","delete");fd.append("id",id);fd.append("product_id",pid);fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(){loadList();}).catch(function(){});});}); Array.prototype.forEach.call(listEl.querySelectorAll(".grit-pub"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");var next=this.getAttribute("data-next");var fd=new FormData();fd.append("action","toggle");fd.append("id",id);fd.append("product_id",pid);fd.append("published",next);fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(){loadList();}).catch(function(){});});});}'
-            . 'function render(items){var listEl=document.getElementById("grit-competitor-list");var f=document.getElementById("grit-competitor-form");if(!listEl){return;} if(!items||!items.length){listEl.innerHTML="<div class=\\"alert alert-light\\">Записей пока нет</div>";return;} var h="<table class=\\"table table-sm\\"><thead><tr><th>ID</th><th>Конкурент</th><th>URL</th><th>Селектор</th><th>Цена</th><th>Обновлено</th><th>Статус</th><th>Действия</th></tr></thead><tbody>";items.forEach(function(it){var pub=String(val(it,"published","PUBLISHED",6))!=="0";var pubTxt=pub?"Опубликован":"Скрыт";var next=pub?"0":"1";var pubBtn=pub?"Скрыть":"Публикация";h+="<tr><td>"+esc(val(it,"id","ID",0))+"</td><td>"+esc(val(it,"competitor_name","COMPETITOR_NAME",1))+"</td><td>"+esc(val(it,"url","URL",2))+"</td><td>"+esc(val(it,"selector","SELECTOR",3))+"</td><td>"+esc(val(it,"price","PRICE",4))+"</td><td>"+esc(val(it,"last_update","LAST_UPDATE",5))+"</td><td>"+esc(pubTxt)+"</td><td><button type=\\"button\\" class=\\"btn btn-xs btn-primary grit-edit\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\">Ред.</button> <button type=\\"button\\" class=\\"btn btn-xs btn-warning grit-pub\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\" data-next=\\""+esc(next)+"\\">"+esc(pubBtn)+"</button> <button type=\\"button\\" class=\\"btn btn-xs btn-danger grit-del\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\">Удал.</button></td></tr>";});h+="</tbody></table>";listEl.innerHTML=h;bindActions(items,f);}'
+            . 'function bindActions(items,f){var listEl=document.getElementById("grit-competitor-list");if(!listEl||!f){return;} Array.prototype.forEach.call(listEl.querySelectorAll(".grit-edit"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");var row=(items||[]).find(function(x){return String(val(x,"id","ID",0))===String(id);});if(!row){return;}f.querySelector("input[name=grit_cp_id]").value=val(row,"id","ID",0)||"";f.querySelector("input[name=grit_cp_competitor_name]").value=val(row,"competitor_name","COMPETITOR_NAME",1)||"";f.querySelector("input[name=grit_cp_url]").value=val(row,"url","URL",2)||"";f.querySelector("input[name=grit_cp_selector]").value=val(row,"selector","SELECTOR",3)||"";f.querySelector("input[name=grit_cp_price]").value=val(row,"price","PRICE",4)||"";window.scrollTo({top:listEl.offsetTop-120,behavior:"smooth"});});}); Array.prototype.forEach.call(listEl.querySelectorAll(".grit-del"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");if(!confirm("Удалить запись?")){return;}var fd=new FormData();fd.append("action","delete");fd.append("id",id);fd.append("product_id",pid);fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(){loadList();}).catch(function(){});});}); Array.prototype.forEach.call(listEl.querySelectorAll(".grit-pub"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");var next=this.getAttribute("data-next");var fd=new FormData();fd.append("action","toggle");fd.append("id",id);fd.append("product_id",pid);fd.append("published",next);fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(){loadList();}).catch(function(){});});}); Array.prototype.forEach.call(listEl.querySelectorAll(".grit-refresh"),function(btn){btn.addEventListener("click",function(){var id=this.getAttribute("data-id");var fd=new FormData();fd.append("action","refresh");fd.append("id",id);fd.append("product_id",pid);fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){var r=document.getElementById("grit-competitor-result");if(d&&d.success){r.innerHTML="<span style=\\"color:green\\">Цена обновлена: "+esc((d.data&&d.data.price!==undefined)?d.data.price:"")+" (дата: "+esc((d.data&&d.data.last_update)?d.data.last_update:"")+")</span>";}else{r.innerHTML="<span style=\\"color:#a00\\">Не удалось обновить цену</span>";}loadList();}).catch(function(){var r=document.getElementById("grit-competitor-result");r.innerHTML="<span style=\\"color:#a00\\">Ошибка обновления цены</span>";});});});}'
+            . 'function render(items){var listEl=document.getElementById("grit-competitor-list");var f=document.getElementById("grit-competitor-form");if(!listEl){return;} if(!items||!items.length){listEl.innerHTML="<div class=\\"alert alert-light\\">Записей пока нет</div>";return;} var h="<table class=\\"table table-sm\\"><thead><tr><th>ID</th><th>Конкурент</th><th>URL</th><th>Селектор</th><th>Цена</th><th>Обновлено</th><th>Статус</th><th>Действия</th></tr></thead><tbody>";items.forEach(function(it){var pub=String(val(it,"published","PUBLISHED",6))!=="0";var pubTxt=pub?"Опубликован":"Скрыт";var next=pub?"0":"1";var pubBtn=pub?"Скрыть":"Публикация";h+="<tr><td>"+esc(val(it,"id","ID",0))+"</td><td>"+esc(val(it,"competitor_name","COMPETITOR_NAME",1))+"</td><td>"+esc(val(it,"url","URL",2))+"</td><td>"+esc(val(it,"selector","SELECTOR",3))+"</td><td>"+esc(val(it,"price","PRICE",4))+"</td><td>"+esc(val(it,"last_update","LAST_UPDATE",5))+"</td><td>"+esc(pubTxt)+"</td><td><button type=\\"button\\" class=\\"btn btn-xs btn-primary grit-edit\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\">Ред.</button> <button type=\\"button\\" class=\\"btn btn-xs btn-info grit-refresh\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\">Обновить цену</button> <button type=\\"button\\" class=\\"btn btn-xs btn-warning grit-pub\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\" data-next=\\""+esc(next)+"\\">"+esc(pubBtn)+"</button> <button type=\\"button\\" class=\\"btn btn-xs btn-danger grit-del\\" data-id=\\""+esc(val(it,"id","ID",0))+"\\">Удал.</button></td></tr>";});h+="</tbody></table>";listEl.innerHTML=h;bindActions(items,f);}'
             . 'function loadList(){fetch(ajaxUrl+"&action=list&product_id="+pid,{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){var items=[];if(d&&d.success){if(d.data&&d.data.items){items=d.data.items;}else if(Array.isArray(d.data)){if(d.data.length&&d.data[0]&&d.data[0].items&&Array.isArray(d.data[0].items)){items=d.data[0].items;}else{items=d.data;}}}render(items);}).catch(function(){render([]);});}'
             . 'function init(){var tc=document.querySelector(".tab-content");if(!tc){return;} if(!document.getElementById("grit-competitor-tab-pane")){var p=document.createElement("div");p.className="tab-pane";p.id="grit-competitor-tab-pane";p.innerHTML=paneHtml;tc.appendChild(p);} var f=document.getElementById("grit-competitor-form");if(f&&!f.dataset.binded){f.dataset.binded="1";var mainForm=f.closest("form");if(mainForm&&!mainForm.dataset.gritCpBound){mainForm.dataset.gritCpBound="1";mainForm.addEventListener("submit",function(){Array.prototype.forEach.call(f.querySelectorAll("input[name^=grit_cp_]"),function(inp){if(!inp.dataset.origName){inp.dataset.origName=inp.getAttribute("name")||"";}inp.removeAttribute("name");});});}var saveBtn=document.getElementById("grit-competitor-save");if(saveBtn){saveBtn.addEventListener("click",function(){var fd=new FormData();fd.append("action","save");fd.append("id",f.querySelector("input[data-orig-name=grit_cp_id],input[name=grit_cp_id]").value||"");fd.append("product_id",f.querySelector("input[data-orig-name=grit_cp_product_id],input[name=grit_cp_product_id]").value||pid);fd.append("competitor_name",f.querySelector("input[data-orig-name=grit_cp_competitor_name],input[name=grit_cp_competitor_name]").value||"");fd.append("url",f.querySelector("input[data-orig-name=grit_cp_url],input[name=grit_cp_url]").value||"");fd.append("selector",f.querySelector("input[data-orig-name=grit_cp_selector],input[name=grit_cp_selector]").value||"");fd.append("price",f.querySelector("input[data-orig-name=grit_cp_price],input[name=grit_cp_price]").value||"");fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){var r=document.getElementById("grit-competitor-result");if(d&&d.success){r.innerHTML="<span style=\\"color:green\\">Сохранено</span>";Array.prototype.forEach.call(f.querySelectorAll("input[data-orig-name=grit_cp_competitor_name],input[name=grit_cp_competitor_name],input[data-orig-name=grit_cp_url],input[name=grit_cp_url],input[data-orig-name=grit_cp_selector],input[name=grit_cp_selector],input[data-orig-name=grit_cp_price],input[name=grit_cp_price]"),function(inp){inp.value="";});f.querySelector("input[data-orig-name=grit_cp_product_id],input[name=grit_cp_product_id]").value=pid;f.querySelector("input[data-orig-name=grit_cp_id],input[name=grit_cp_id]").value="";loadList();}else{r.innerHTML="<span style=\\"color:#a00\\">Ошибка сохранения</span>";}}).catch(function(){var r=document.getElementById("grit-competitor-result");r.innerHTML="<span style=\\"color:#a00\\">Ошибка запроса</span>";});});}} loadList();}'
             . 'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}'
@@ -471,6 +618,51 @@ final class PlgSystemGrit_competitor_tab extends CMSPlugin
             }
 
             return ['toggled' => true, 'published' => $published];
+        }
+
+        if ($action === 'refresh') {
+            if ($id <= 0) {
+                throw new RuntimeException('Invalid id');
+            }
+
+            $columnsInfo = $db->getTableColumns('#__competitor_prices', false);
+            $urlField = isset($columnsInfo['url']) ? 'url' : (isset($columnsInfo['competitor_url']) ? 'competitor_url' : '');
+            $selectorField = isset($columnsInfo['selector']) ? 'selector' : '';
+            if ($urlField === '' || $selectorField === '') {
+                throw new RuntimeException('URL/selector columns are not available in table');
+            }
+
+            $query = $db->getQuery(true)
+                ->select([$db->quoteName('id'), $db->quoteName($urlField, 'url'), $db->quoteName($selectorField, 'selector')])
+                ->from($db->quoteName('#__competitor_prices'))
+                ->where($db->quoteName('id') . ' = ' . (int) $id);
+            $db->setQuery($query);
+            $row = $db->loadAssoc();
+            if (!$row) {
+                throw new RuntimeException('Record not found');
+            }
+
+            $url = trim((string) ($row['url'] ?? ''));
+            $selector = trim((string) ($row['selector'] ?? ''));
+            if ($url === '' || $selector === '') {
+                throw new RuntimeException('URL or selector is empty');
+            }
+
+            $this->debugLog('AJAX refresh start: id=' . $id . ', url=' . $url . ', selector=' . $selector);
+            $html = $this->fetchUrlContent($url);
+            $price = $this->extractPriceFromHtml($html, $selector);
+            $lastUpdate = date('Y-m-d H:i:s');
+
+            $update = $db->getQuery(true)
+                ->update($db->quoteName('#__competitor_prices'))
+                ->set($db->quoteName('price') . ' = ' . $db->quote((string) $price))
+                ->set($db->quoteName('last_update') . ' = ' . $db->quote($lastUpdate))
+                ->where($db->quoteName('id') . ' = ' . (int) $id);
+            $db->setQuery($update);
+            $db->execute();
+
+            $this->debugLog('AJAX refresh done: id=' . $id . ', price=' . $price . ', last_update=' . $lastUpdate);
+            return ['refreshed' => true, 'price' => $price, 'last_update' => $lastUpdate];
         }
 
         $competitorName = trim($input->getString('competitor_name'));
